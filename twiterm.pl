@@ -4,6 +4,7 @@ use warnings;
 
 use lib 'lib';
 use Twiterm::Statuses;
+use Twiterm::Page;
 
 use AnyEvent;
 use Encode 'encode_utf8';
@@ -25,10 +26,13 @@ my $statuses = new Statuses(
     password => $password,
 );
 my $screen = new Term::Screen;
-my $status_help = ' (j)down (k)up (:)command (q)quit';
+my $status_help = '(h)<-prev (j)down (k)up (l)->next (:)command (q)quit';
 my ($row, $col) = ($screen->rows() - 3, $screen->cols() - 1);
-my $offset = 0;
-my $select = 0;
+my @pages = (
+    new Page(),
+    new Page(),
+);
+my $page = 0;
 my $disp_mode = 0;
 
 $screen->clrscr();
@@ -64,18 +68,25 @@ while (1) {
         my $line = select_down();
         next if !defined $line;
         draw($line);
-        draw_status_line();
     }
     if ($char eq 'k') {
         my $line = select_up();
         next if !defined $line;
         draw($line);
-        draw_status_line();
     }
-    if ($char =~ /(\x0A|\x0D)/) {
+    if ($char eq 'h') {
+        $page--;
+        $page += @pages if $page < 0;
+        draw();
+    }
+    if ($char eq 'l') {
+        $page++;
+        $page = 0 if $page > $#pages;
+        draw();
+    }
+    if ($char =~ /(\x0A|\x0D|\x20)/) {
         $disp_mode = !$disp_mode;
         draw();
-        draw_status_line();
     }
     update() if $char eq 'd';
     if ($char eq ':') {
@@ -84,7 +95,6 @@ while (1) {
         command();
         $screen = new Term::Screen;
         draw();
-        draw_status_line();
     }
     last if $char eq 'q';
 }
@@ -92,7 +102,7 @@ while (1) {
 sub draw_detail {
     $screen->clrscr();
 
-    my $status = $statuses->statuses->[$offset + $select];
+    my $status = $statuses->statuses->[$pages[$page]->position()];
     $screen->at(0, 0)->puts($status->{user}->{screen_name})->clreol();
     $screen->at(1, 0)->puts(encode_utf8 $status->{user}->{name})->clreol();
     $screen->at(2, 0)->puts(encode_utf8 $status->{user}->{location})->clreol();
@@ -113,6 +123,7 @@ sub draw {
     } else {
         draw_list(@_);
     }
+    draw_status_line();
 }
 
 sub draw_list {
@@ -124,12 +135,10 @@ sub draw_list {
         if ($target == -1) {
             $screen->at(0, 0)->il();
             $target++;
-            draw_status_line();
         }
         if ($target == $row + 1) {
             $screen->at(0, 0)->dl();
             $target--;
-            draw_status_line();
         }
         @range = ($target - 1, $target, $target + 1);
         shift @range if $target == 0;
@@ -137,7 +146,7 @@ sub draw_list {
     }
     # 各行の描画
     for my $line (@range) {
-        my $status = $statuses->statuses->[$line + $offset];
+        my $status = $statuses->statuses->[$line + $pages[$page]->{offset}];
         my $text;
         if (defined $status->{line}) {
             # 表示用にキャッシュしておく
@@ -157,7 +166,7 @@ sub draw_list {
             $status->{line} = $text;
         }
         $screen->at($line, 0);
-        $screen->reverse() if ($select == $line);
+        $screen->reverse() if ($pages[$page]->{select} == $line);
         $screen->puts($text)->clreol()->normal();
     }
     $screen->at($row + 2, 0)->clreol();
@@ -166,7 +175,7 @@ sub draw_list {
 sub draw_status_line {
     $screen->at($row + 1, 0);
     my $status_line = sprintf " [%d/%d] %s",
-        $offset + $select + 1, scalar @{$statuses->statuses}, $status_help;
+        $pages[$page]->position() + 1, scalar @{$statuses->statuses}, $status_help;
     print YELLOW ON_BLUE
         $status_line, ' ' x ($col - length($status_line) + 1), RESET;
     $screen->at($row + 2, 0)->clreol();
@@ -181,30 +190,30 @@ sub command {
 }
 
 sub select_up {
-    return if $select + $offset <= 0;
-    if ($select == 0) {
+    return if $pages[$page]->position() <= 0;
+    if ($pages[$page]->{select} == 0) {
         return scroll_up();
     } else {
-        return --$select;
+        return --$pages[$page]->{select};
     }
 }
 
 sub select_down {
-    return if $select + $offset >= $#{$statuses->statuses};
-    if ($select == $row) {
+    return if $pages[$page]->position() >= $#{$statuses->statuses};
+    if ($pages[$page]->{select} == $row) {
         return scroll_down();
     } else {
-        return ++$select;
+        return ++$pages[$page]->{select};
     }
 }
 
 sub scroll_up {
-    $offset--;
+    $pages[$page]->{offset}--;
     return -1;
 }
 
 sub scroll_down {
-    $offset++;
+    $pages[$page]->{offset}++;
     return $row + 1;
 }
 
@@ -212,7 +221,6 @@ sub update {
     $statuses->update(
         sub {
             draw();
-            draw_status_line();
             $screen->at($row + 2, 0)->clreol();
         }
     );
