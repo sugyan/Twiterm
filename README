@@ -1,0 +1,1 @@
+$ perl twiterm.pl --username=<username> --password=<password>

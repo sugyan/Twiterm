@@ -43,6 +43,7 @@ sub add {
         # データのカスタマイズ
         $status->{created_at} = str2time $status->{created_at};
         $status->{text} = decode_entities $status->{text};
+        $status->{text} =~ s/[\x00-\x1F]/ /xmsg;
         if ($status->{source} =~ m!<a .*? >(.*)</a>!xms) {
             $status->{source} = $1;
         }
