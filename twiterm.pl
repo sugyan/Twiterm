@@ -208,14 +208,6 @@ sub scroll_down {
     return $row + 1;
 }
 
-sub insert_before {
-    if ($#{$statuses->statuses} <= $row) {
-        select_down();
-    } else {
-        $offset++;
-    }
-}
-
 sub update {
     $statuses->update(
         sub {
