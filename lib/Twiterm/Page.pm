@@ -15,6 +15,12 @@ has 'select' => (
     default => 0,
 );
 
+has 'disp_mode' => (
+    is      => 'rw',
+    isa     => 'Int',
+    default => 0,
+);
+
 sub position {
     my $self = shift;
     return $self->{offset} + $self->{select};

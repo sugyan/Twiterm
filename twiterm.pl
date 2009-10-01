@@ -34,7 +34,6 @@ my @pages = (
     new Page(),
 );
 my $page = 0;
-my $disp_mode = 0;
 
 $screen->clrscr();
 draw_status_line();
@@ -74,7 +73,7 @@ while (1) {
         draw();
     }
     if ($char =~ /(\x0A|\x0D|\x20)/) {
-        $disp_mode = !$disp_mode;
+        $pages[$page]->{disp_mode} = !$pages[$page]->{disp_mode};
         draw();
     }
     update() if $char eq 'd';
@@ -107,7 +106,7 @@ sub draw_detail {
 sub draw {
     return unless @{$statuses->statuses};
 
-    if ($disp_mode) {
+    if ($pages[$page]->{disp_mode}) {
         draw_detail(@_);
     } else {
         draw_list(@_);
