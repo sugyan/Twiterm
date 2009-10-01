@@ -24,7 +24,9 @@ warn "$usage\n" and die if (!defined($username) or !defined($password));
 my $statuses = new Statuses(
     username => $username,
     password => $password,
+    update_cb => \&draw,
 );
+
 my $screen = new Term::Screen;
 my $status_help = '(h)<-prev (j)down (k)up (l)->next (:)command (q)quit';
 my ($row, $col) = ($screen->rows() - 3, $screen->cols() - 1);
@@ -37,18 +39,6 @@ my $disp_mode = 0;
 
 $screen->clrscr();
 draw_status_line();
-
-# 一定時間毎にupdateする
-my $cv_timer = AnyEvent->condvar;
-my $timer; $timer = AnyEvent->timer(
-    after    => 0,
-    interval => 60,
-    cb       => sub {
-        update();
-        $cv_timer->send;
-    },
-);
-$cv_timer->recv;
 
 while (1) {
     my $cv = AnyEvent->condvar;
@@ -215,15 +205,6 @@ sub scroll_up {
 sub scroll_down {
     $pages[$page]->{offset}++;
     return $row + 1;
-}
-
-sub update {
-    $statuses->update(
-        sub {
-            draw();
-            $screen->at($row + 2, 0)->clreol();
-        }
-    );
 }
 
 END {

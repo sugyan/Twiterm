@@ -18,6 +18,11 @@ has 'password' => (
     required => 1,
 );
 
+has 'update_cb' => (
+    is  => 'ro',
+    isa => 'CodeRef',
+);
+
 has 'statuses' => (is => 'ro', isa => 'ArrayRef');
 
 sub BUILD {
@@ -27,39 +32,6 @@ sub BUILD {
         username => $self->{username},
         password => $self->{password},
     );
-}
-
-sub add {
-    my $self = shift;
-    my @args = @_;
-
-    # idで重複チェック
-    my %ids;
-    for my $id (map { $_->{id} } @{$self->{statuses}}) {
-        $ids{$id}++;
-    }
-    for my $status (@args) {
-        next if defined $ids{$status->{id}};
-        # データのカスタマイズ
-        $status->{created_at} = str2time $status->{created_at};
-        $status->{text} = decode_entities $status->{text};
-        $status->{text} =~ s/[\x00-\x1F]/ /xmsg;
-        if ($status->{source} =~ m!<a .*? >(.*)</a>!xms) {
-            $status->{source} = $1;
-        }
-
-        push @{$self->{statuses}}, $status;
-    }
-    # created_at順に並べ替える
-    $self->{statuses} = [sort {
-        $b->{created_at} <=> $a->{created_at}
-    } @{$self->{statuses}}];
-}
-
-sub update {
-    my $self = shift;
-    my $callback = shift;
-
     my $w; $w = $self->{twitter}->reg_cb(
         error => sub {
             my ($twitter, $error) = @_;
@@ -68,13 +40,28 @@ sub update {
         },
         statuses_friends => sub {
             my ($twitter, @statuses) = @_;
-
-            $self->add(map { $_->[1] } @statuses);
-            &$callback();
+            $self->add(map { $_->[1] } reverse @statuses);
+            &{$self->{update_cb}}();
         },
     );
     $self->{twitter}->receive_statuses_friends;
     $self->{twitter}->start;
+}
+
+sub add {
+    my $self = shift;
+    my @args = @_;
+
+    for my $status (@args) {
+        # データのカスタマイズ
+        $status->{created_at} = str2time $status->{created_at};
+        $status->{text} = decode_entities $status->{text};
+        $status->{text} =~ s/[\x00-\x1F]/ /xmsg;
+        if ($status->{source} =~ m!<a .*? >(.*)</a>!xms) {
+            $status->{source} = $1;
+        }
+        unshift @{$self->{statuses}}, $status;
+    }
 }
 
 __PACKAGE__->meta->make_immutable;
