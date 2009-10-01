@@ -1,4 +1,3 @@
-#!/opt/local/bin/perl
 package Statuses;
 
 use HTML::Entities;
