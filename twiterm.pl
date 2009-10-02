@@ -1,25 +1,26 @@
 use strict;
 use warnings;
 
-use lib 'lib';
-use Twiterm::Statuses;
-use Twiterm::Page;
-
 use AnyEvent;
 use Encode 'encode_utf8';
+use File::Basename 'dirname';
 use Getopt::Long;
 use Term::ANSIColor ':constants';
 use Term::Screen;
 use Term::ReadLine;
 use Unicode::EastAsianWidth;
 
-my $usage = "usage: $0 --username=<username> --password=<password>";
+use lib dirname($0) . '/lib';
+use Twiterm::Statuses;
+use Twiterm::Page;
+
+my $usage = "usage: perl $0 --username=<username> --password=<password>\n";
 my ($username, $password);
 GetOptions(
     'username=s' => \$username,
     'password=s' => \$password,
 ) or die;
-warn "$usage\n" and die if (!defined($username) or !defined($password));
+warn $usage and die if (!defined($username) or !defined($password));
 my $statuses = new Statuses(
     username => $username,
     password => $password,
