@@ -1,8 +1,8 @@
-package Statuses;
+package Twiterm::Statuses;
 
-use HTML::Entities;
-use Date::Parse 'str2time';
 use AnyEvent::Twitter;
+use Date::Parse 'str2time';
+use HTML::Entities;
 use Mouse;
 
 has 'username' => (
@@ -17,19 +17,32 @@ has 'password' => (
     required => 1,
 );
 
+has 'delegate' => (
+    is  => 'ro',
+    isa => 'Object',
+);
 has 'update_cb' => (
     is  => 'ro',
     isa => 'CodeRef',
 );
 
-has 'statuses' => (is => 'ro', isa => 'ArrayRef');
+has 'friends'  => (
+    is => 'ro',
+    isa => 'ArrayRef',
+    default => sub { [] },
+);
+has 'mentions' => (
+    is => 'ro',
+    isa => 'ArrayRef',
+    default => sub { [] },
+);
 
 sub BUILD {
     my $self = shift;
-    $self->{statuses} = [];
     $self->{twitter} = AnyEvent::Twitter->new(
         username => $self->{username},
         password => $self->{password},
+        bandwidth=> 0.1,
     );
     my $w; $w = $self->{twitter}->reg_cb(
         error => sub {
@@ -40,7 +53,10 @@ sub BUILD {
         statuses_friends => sub {
             my ($twitter, @statuses) = @_;
             $self->add(map { $_->[1] } reverse @statuses);
-            &{$self->{update_cb}}();
+            if (defined $self->{update_cb} &&
+                    defined $self->{delegate}) {
+                &{$self->{update_cb}}($self->{delegate});
+            }
         },
     );
     $self->{twitter}->receive_statuses_friends;
@@ -59,7 +75,7 @@ sub add {
         if ($status->{source} =~ m!<a .*? >(.*)</a>!xms) {
             $status->{source} = $1;
         }
-        unshift @{$self->{statuses}}, $status;
+        unshift @{$self->friends}, $status;
     }
 }
 

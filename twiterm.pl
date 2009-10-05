@@ -10,9 +10,9 @@ use Term::Screen;
 use Term::ReadLine;
 use Unicode::EastAsianWidth;
 
-use lib dirname($0) . '/lib';
-use Twiterm::Statuses;
-use Twiterm::Page;
+use FindBin '$Bin';
+use lib "$Bin/lib";
+use Twiterm;
 
 my $usage = "usage: perl $0 --username=<username> --password=<password>\n";
 my ($username, $password);
@@ -21,6 +21,20 @@ GetOptions(
     'password=s' => \$password,
 ) or die;
 warn $usage and die if (!defined($username) or !defined($password));
+my $twiterm = new Twiterm(
+    config => {
+        username => $username,
+        password => $password,
+        pages => [ {
+            timeline => 'friends',
+        }, {
+            timeline => 'mentions',
+        } ],
+    },
+);
+$twiterm->run();
+
+exit;
 my $statuses = new Statuses(
     username => $username,
     password => $password,
@@ -31,8 +45,8 @@ my $screen = new Term::Screen;
 my $status_help = '(h)<-prev (j)down (k)up (l)->next (:)command (q)quit';
 my ($row, $col) = ($screen->rows() - 3, $screen->cols() - 1);
 my @pages = (
-    new Page(),
-    new Page(),
+    new Page( timeline => sub { $statuses->friends;  } ),
+    new Page( timeline => sub { $statuses->mentions; } ),
 );
 my $page = 0;
 
@@ -91,7 +105,7 @@ while (1) {
 sub draw_detail {
     $screen->clrscr();
 
-    my $status = $statuses->statuses->[$pages[$page]->position()];
+    my $status = &{$pages[$page]->timeline}->[$pages[$page]->position()];
     $screen->at(0, 0)->puts($status->{user}->{screen_name})->clreol();
     $screen->at(1, 0)->puts(encode_utf8 $status->{user}->{name})->clreol();
     $screen->at(2, 0)->puts(encode_utf8 $status->{user}->{location})->clreol();
@@ -105,15 +119,10 @@ sub draw_detail {
 }
 
 sub draw {
-    return unless @{$statuses->statuses};
+#     return unless @{&{$pages[$page]->timeline}};
 
-    if ($pages[$page]->{disp_mode}) {
-        draw_detail(@_);
-    } else {
-        draw_list(@_);
-    }
-    draw_status_line();
-}
+    if ($pages[$page]->{disp_mode}) { draw_detail(@_); } else {
+        draw_list(@_); } draw_status_line(); }
 
 sub draw_list {
     my $target = shift;
@@ -135,7 +144,7 @@ sub draw_list {
     }
     # 各行の描画
     for my $line (@range) {
-        my $status = $statuses->statuses->[$line + $pages[$page]->{offset}];
+        my $status = &{$pages[$page]->timeline}->[$line + $pages[$page]->{offset}];
         my $text;
         if (defined $status->{line}) {
             # 表示用にキャッシュしておく
@@ -164,7 +173,7 @@ sub draw_list {
 sub draw_status_line {
     $screen->at($row + 1, 0);
     my $status_line = sprintf " [%d/%d] %s",
-        $pages[$page]->position() + 1, scalar @{$statuses->statuses}, $status_help;
+        $pages[$page]->position() + 1, scalar @{&{$pages[$page]->timeline}}, $status_help;
     print YELLOW ON_BLUE
         $status_line, ' ' x ($col - length($status_line) + 1), RESET;
     $screen->at($row + 2, 0)->clreol();
@@ -188,7 +197,7 @@ sub select_up {
 }
 
 sub select_down {
-    return if $pages[$page]->position() >= $#{$statuses->statuses};
+    return if $pages[$page]->position() >= $#{&{$pages[$page]->timeline}};
     if ($pages[$page]->{select} == $row) {
         return scroll_down();
     } else {
@@ -206,6 +215,6 @@ sub scroll_down {
     return $row + 1;
 }
 
-END {
-    $screen->clrscr() if $screen;
-}
+# END {
+#     $screen->clrscr() if $screen;
+# }
