@@ -88,7 +88,7 @@ sub _draw {
     my $status_line = sprintf " [ %d / %d ] ",
         $timeline_size ? $self->{page}->position + 1 : 0, $timeline_size;
     print YELLOW ON_BLUE
-        $status_line, ' ' x ($self->{col} - length($status_line) + 1), RESET;
+        $status_line, ' ' x ($self->{col} - length($status_line) - 1), RESET;
 }
 
 sub _draw_list {

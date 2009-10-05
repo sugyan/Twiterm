@@ -10,8 +10,8 @@ use Term::Screen;
 use Term::ReadLine;
 use Unicode::EastAsianWidth;
 
-use FindBin '$Bin';
-use lib "$Bin/lib";
+use FindBin;
+use lib File::Spec->catfile($FindBin::Bin, 'lib');
 use Twiterm;
 
 my $usage = "usage: perl $0 --username=<username> --password=<password>\n";
