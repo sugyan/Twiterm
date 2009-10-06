@@ -93,7 +93,7 @@ sub _draw {
         $self->{page}->name,
     );
     print YELLOW ON_BLUE
-        $status_line, ' ' x ($self->{col} - length $status_line), RESET;
+        $status_line, ' ' x ($self->{col} - 1 - length $status_line), RESET;
 }
 
 sub _draw_detail {
