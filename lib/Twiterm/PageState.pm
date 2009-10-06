@@ -34,6 +34,17 @@ sub offset {
     return $self->{pages}->[$self->{index}]->{offset};
 }
 
+sub disp_mode {
+    my $self = shift;
+    return $self->{pages}->[$self->{index}]->{disp_mode};
+}
+
+sub change_mode {
+    my $self = shift;
+    my $page = $self->{pages}->[$self->{index}];
+    $page->{disp_mode} = !$page->{disp_mode};
+}
+
 sub select {
     my $self = shift;
     return $self->{pages}->[$self->{index}]->{select};
@@ -42,6 +53,11 @@ sub select {
 sub position {
     my $self = shift;
     return $self->offset + $self->select;
+}
+
+sub name {
+    my $self = shift;
+    return $self->{pages}->[$self->{index}]->{name};
 }
 
 sub incr_select {

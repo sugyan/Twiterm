@@ -31,6 +31,7 @@ sub BUILD {
     );
     $self->{page} = new Twiterm::PageState();
     $self->{page}->addPage({
+        name     => 'log',
         timeline => 'log',
     });
     for my $page_config (@{$self->{config}->{pages}}) {
@@ -69,6 +70,7 @@ sub run {
         $self->_select_next() if $char eq 'j';
         $self->_select_prev() if $char eq 'k';
         $self->_page_next()   if $char eq 'l';
+        $self->_change_mode() if $char =~ /\x0A|\x20/;
         $self->_update_done() if $char eq 'd';
     }
     $self->{screen}->clrscr();
@@ -77,7 +79,7 @@ sub run {
 sub _draw {
     my $self = shift;
 
-    if ($self->{page}->{disp_mode}) {
+    if ($self->{page}->disp_mode()) {
         $self->_draw_detail(@_);
     } else {
         $self->_draw_list(@_);
@@ -85,30 +87,46 @@ sub _draw {
 
     $self->{screen}->at(0, 0);
     my $timeline_size = scalar @{$self->{timeline}};
-    my $status_line = sprintf " [ %d / %d ] ",
-        $timeline_size ? $self->{page}->position + 1 : 0, $timeline_size;
+    my $status_line = sprintf " [ %d / %d ] - %s", (
+        $timeline_size ? $self->{page}->position + 1 : 0,
+        $timeline_size,
+        $self->{page}->name,
+    );
     print YELLOW ON_BLUE
-        $status_line, ' ' x ($self->{col} - length($status_line) - 1), RESET;
+        $status_line, ' ' x ($self->{col} - length $status_line), RESET;
+}
+
+sub _draw_detail {
+    my $self = shift;
+
+    $self->{screen}->at(1, 0)->clreos();
+    my $status = $self->{timeline}->[$self->{page}->position()];
+
+    return if !defined $status;
+    {
+        local $\ = "\r\n";
+        print scalar localtime $status->{created_at};
+        print $status->{user}->{screen_name};
+        print encode_utf8 $status->{text};
+    }
 }
 
 sub _draw_list {
     my $self = shift;
-    my $target = shift;
+    my @range = @_;
 
-    my @range = (0 .. $self->{row});
-    if (defined $target) {
-        if ($target == -1) {
+    if (@range == 1) {
+        if ($range[0] == 0) {
             $self->{screen}->at(1, 0)->il();
-            $target++;
+            push @range, 1;
         }
-        if ($target == $self->{row} + 1) {
+        if ($range[0] > 0) {
             $self->{screen}->at(1, 0)->dl();
-            $target--;
+            unshift @range, $self->{row} - 1;
         }
-        @range = ($target - 1, $target, $target + 1);
-        shift @range if $target == 0;
-        pop   @range if $target == $self->{row};
     }
+    @range = (0 .. $self->{row}) if @range == 0;
+
     for my $line (@range) {
         my $text;
         my $status = $self->{timeline}->[$line + $self->{page}->offset];
@@ -153,43 +171,48 @@ sub _select_prev {
     my $self = shift;
     return if $self->{page}->position <= 0;
 
-    my $line;
     if ($self->{page}->select == 0) {
         $self->{page}->decr_offset;
-        $line = -1;
+        $self->_draw(0);
     } else {
-        $line = $self->{page}->decr_select;
+        my $line = $self->{page}->decr_select;
+        $self->_draw($line - 1, $line);
     }
-    $self->_draw($line);
 }
 
 sub _select_next {
     my $self = shift;
     return if $self->{page}->position >= $#{$self->{timeline}};
 
-    my $line;
     if ($self->{page}->select == $self->{row}) {
         $self->{page}->incr_offset;
-        $line = $self->{row} + 1;
+        $self->_draw($self->{row});
     } else {
-        $line = $self->{page}->incr_select;
+        my $line = $self->{page}->incr_select;
+        $self->_draw($line, $line + 1);
     }
-    $self->_draw($line);
+}
+
+sub _change_mode {
+    my $self = shift;
+    $self->{page}->change_mode();
+    $self->_draw();
 }
 
 sub _update_done {
     my $self = shift;
     $self->{timeline} = $self->_get_statuses();
+    $self->_draw();
 }
 
 sub _get_statuses {
     my $self = shift;
     my $timeline = $self->{page}->timeline();
     if ($timeline eq 'friends') {
-        return $self->{statuses}->friends;
+        return $self->{statuses}->friends();
     }
     if ($timeline eq 'mentions') {
-        return $self->{statuses}->mentions;
+        return $self->{statuses}->mentions();
     }
     return [];
 }

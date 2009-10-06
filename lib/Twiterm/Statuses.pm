@@ -48,11 +48,12 @@ sub BUILD {
         error => sub {
             my ($twitter, $error) = @_;
             #TODO エラー時の処理はどうする？
+            warn "error\n";
             undef $w;
         },
         statuses_friends => sub {
             my ($twitter, @statuses) = @_;
-            $self->add(map { $_->[1] } reverse @statuses);
+            $self->add(reverse @statuses);
             if (defined $self->{update_cb} &&
                     defined $self->{delegate}) {
                 &{$self->{update_cb}}($self->{delegate});
@@ -65,17 +66,19 @@ sub BUILD {
 
 sub add {
     my $self = shift;
-    my @args = @_;
+    my @statuses = @_;
 
-    for my $status (@args) {
+    for my $status (@statuses) {
+        my $data = $status->[1];
         # データのカスタマイズ
-        $status->{created_at} = str2time $status->{created_at};
-        $status->{text} = decode_entities $status->{text};
-        $status->{text} =~ s/[\x00-\x1F]/ /xmsg;
-        if ($status->{source} =~ m!<a .*? >(.*)</a>!xms) {
-            $status->{source} = $1;
+        $data->{created_at} = $status->[0]->{timestamp};
+        $data->{text} = $status->[0]->{text};
+        $data->{text} =~ s/[\x00-\x1F]/ /xmsg;
+        if ($data->{source} =~ m!<a .*? >(.*)</a>!xms) {
+            $data->{source} = $1;
         }
-        unshift @{$self->friends}, $status;
+
+        unshift @{$self->friends}, $data;
     }
 }
 
