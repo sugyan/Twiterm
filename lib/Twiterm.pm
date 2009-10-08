@@ -202,6 +202,7 @@ sub _change_mode {
 sub _update_done {
     my $self = shift;
     $self->{timeline} = $self->_get_statuses();
+    print $self->_get_statuses();
     $self->_draw();
 }
 
@@ -209,10 +210,10 @@ sub _get_statuses {
     my $self = shift;
     my $timeline = $self->{page}->timeline();
     if ($timeline eq 'friends') {
-        return $self->{statuses}->friends();
+        return [$self->{statuses}->friends()];
     }
     if ($timeline eq 'mentions') {
-        return $self->{statuses}->mentions();
+        return [$self->{statuses}->mentions()];
     }
     return [];
 }

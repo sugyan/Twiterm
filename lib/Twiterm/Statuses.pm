@@ -26,16 +26,9 @@ has 'update_cb' => (
     isa => 'CodeRef',
 );
 
-has 'friends'  => (
-    is => 'ro',
-    isa => 'ArrayRef',
-    default => sub { [] },
-);
-has 'mentions' => (
-    is => 'ro',
-    isa => 'ArrayRef',
-    default => sub { [] },
-);
+no Mouse;
+
+__PACKAGE__->meta->make_immutable;
 
 sub BUILD {
     my $self = shift;
@@ -44,6 +37,9 @@ sub BUILD {
         password => $self->{password},
         bandwidth=> 0.1,
     );
+    $self->{friends}  = {};
+    $self->{mentions} = {};
+    $self->{users}    = {};
     my $w; $w = $self->{twitter}->reg_cb(
         error => sub {
             my ($twitter, $error) = @_;
@@ -53,7 +49,7 @@ sub BUILD {
         },
         statuses_friends => sub {
             my ($twitter, @statuses) = @_;
-            $self->add(reverse @statuses);
+            $self->_add($self->{friends}, @statuses);
             if (defined $self->{update_cb} &&
                     defined $self->{delegate}) {
                 &{$self->{update_cb}}($self->{delegate});
@@ -64,9 +60,18 @@ sub BUILD {
     $self->{twitter}->start;
 }
 
-sub add {
+sub friends {
     my $self = shift;
-    my @statuses = @_;
+    return $self->_sorted(values %{$self->{friends}});
+}
+
+sub mentions {
+    my $self = shift;
+    return $self->_sorted(values %{$self->{mentions}});
+}
+
+sub _add {
+    my ($self, $timeline, @statuses) = @_;
 
     for my $status (@statuses) {
         my $data = $status->[1];
@@ -77,13 +82,23 @@ sub add {
         if ($data->{source} =~ m!<a .*? >(.*)</a>!xms) {
             $data->{source} = $1;
         }
+        $data->{id} = $status->[1]->{id};
+        $self->{users}{$data->{user}{id}} = $data->{user};
 
-        unshift @{$self->friends}, $data;
+        $timeline->{$data->{id}} = $data;
     }
 }
 
-__PACKAGE__->meta->make_immutable;
+sub user {
+    my ($self, $id) = @_;
+    return $self->{users}{$id};
+}
 
-no Mouse;
+sub _sorted {
+    my ($self, @statuses) = @_;
+    return reverse sort {
+        $a->{created_at} <=> $b->{created_at}
+    } @statuses;
+}
 
 1;
