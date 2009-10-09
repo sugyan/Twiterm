@@ -101,13 +101,35 @@ sub _draw_detail {
 
     $self->{screen}->at(1, 0)->clreos();
     my $status = $self->{timeline}->[$self->{page}->position()];
+    my $user   = $self->{statuses}->user($status->{user_id});
 
     return if !defined $status;
     {
         local $\ = "\r\n";
-        print scalar localtime $status->{created_at};
-        print $status->{user}->{screen_name};
+        my $time_and_client = sprintf "%s - from %s",
+            (scalar localtime $status->{created_at}, $status->{source});
+        my $user_name = sprintf "%s / %s",
+            ($status->{screen_name}, encode_utf8 $user->{name});
+        $user_name = "(protected) $user_name" if ($user->{protected});
+        my $friends_and_followers = sprintf "%d friends, %d followers",
+                ($user->{friends_count}, $user->{followers_count});
+        print $time_and_client;
+        print $user_name;
         print encode_utf8 $status->{text};
+        if (my $reply_user = $status->{in_reply_to_screen_name}) {
+            my $reply_status =
+                $self->{statuses}->status($status->{in_reply_to_status_id});
+            print '';
+            print "in reply to \@$reply_user:";
+            print encode_utf8 $reply_status->{text} if $reply_status;
+        }
+        print '';
+        print '';
+        print '';
+        print $friends_and_followers;
+        print encode_utf8 $user->{location} || '';
+        print $user->{url} || '';
+        print encode_utf8 $user->{description} || '';
     }
 }
 
@@ -135,8 +157,11 @@ sub _draw_list {
             if (!defined $text) {
                 # ターミナル幅に合わせて1行以内に収まるように切る
                 my @created_at = localtime $status->{created_at};
-                my $status_text = sprintf '%02d/%02d %02d:%02d:%02d - %s : ',
-                    $created_at[4] + 1, @created_at[3, 2, 1, 0], $status->{user}->{screen_name};
+                my $status_text = sprintf '%02d/%02d %02d:%02d:%02d - %s : ', (
+                    $created_at[4] + 1,
+                    @created_at[3, 2, 1, 0],
+                    $status->{screen_name},
+                );
                 my $width = length $status_text;
                 for my $char (split //, $status->{text}) {
                     $width += $char =~ /\p{InFullwidth}/ ? 2 : 1;
@@ -202,7 +227,7 @@ sub _change_mode {
 sub _update_done {
     my $self = shift;
     $self->{timeline} = $self->_get_statuses();
-    print $self->_get_statuses();
+    $self->_get_statuses();
     $self->_draw();
 }
 

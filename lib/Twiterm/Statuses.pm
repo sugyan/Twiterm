@@ -74,24 +74,37 @@ sub _add {
     my ($self, $timeline, @statuses) = @_;
 
     for my $status (@statuses) {
-        my $data = $status->[1];
         # データのカスタマイズ
-        $data->{created_at} = $status->[0]->{timestamp};
-        $data->{text} = $status->[0]->{text};
-        $data->{text} =~ s/[\x00-\x1F]/ /xmsg;
-        if ($data->{source} =~ m!<a .*? >(.*)</a>!xms) {
-            $data->{source} = $1;
+        my $raw_data = $status->[1];
+        my $text = $status->[0]{text};
+        $text =~ s/[\x00-\x1F]/ /xmsg;
+        my $source = $raw_data->{source};
+        if ($source =~ m!<a \s href.*?>(.*)</a>!xms) {
+            $source = $1;
         }
-        $data->{id} = $status->[1]->{id};
-        $self->{users}{$data->{user}{id}} = $data->{user};
-
-        $timeline->{$data->{id}} = $data;
+        # statusの追加
+        $timeline->{$raw_data->{id}} = {
+            screen_name => $status->[0]{screen_name},
+            created_at  => $status->[0]{timestamp},
+            text        => $text,
+            source      => $source,
+            user_id     => $raw_data->{user}{id},
+            in_reply_to_screen_name => $raw_data->{in_reply_to_screen_name},
+            in_reply_to_status_id   => $raw_data->{in_reply_to_status_id},
+        };
+        # userの追加
+        $self->{users}{$raw_data->{user}{id}} = $raw_data->{user};
     }
 }
 
 sub user {
     my ($self, $id) = @_;
     return $self->{users}{$id};
+}
+
+sub status {
+    my ($self, $id) = @_;
+    return $self->{friends}{$id} || $self->{mentions}{$id};
 }
 
 sub _sorted {
