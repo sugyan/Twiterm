@@ -1,8 +1,5 @@
 package Twiterm::Statuses;
 
-use AnyEvent::Twitter;
-use Date::Parse 'str2time';
-use HTML::Entities;
 use Mouse;
 
 has 'username' => (
@@ -30,6 +27,15 @@ no Mouse;
 
 __PACKAGE__->meta->make_immutable;
 
+use AnyEvent::Twitter;
+use Date::Parse 'str2time';
+use HTML::Entities;
+use Log::Message;
+
+my $log = new Log::Message(
+    tag => __PACKAGE__,
+);
+
 sub BUILD {
     my $self = shift;
     $self->{twitter} = AnyEvent::Twitter->new(
@@ -43,12 +49,12 @@ sub BUILD {
     my $w; $w = $self->{twitter}->reg_cb(
         error => sub {
             my ($twitter, $error) = @_;
-            #TODO エラー時の処理はどうする？
-            warn "error\n";
+            $log->store('error');
             undef $w;
         },
         statuses_friends => sub {
             my ($twitter, @statuses) = @_;
+            $log->store('get friends_timeline');
             $self->_add($self->{friends}, @statuses);
             if (defined $self->{update_cb} &&
                     defined $self->{delegate}) {
@@ -58,6 +64,7 @@ sub BUILD {
     );
     $self->{twitter}->receive_statuses_friends;
     $self->{twitter}->start;
+    $log->store('BUILD ok');
 }
 
 sub friends {

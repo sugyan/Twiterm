@@ -12,13 +12,18 @@ no Mouse;
 
 __PACKAGE__->meta->make_immutable;
 
+use Date::Parse 'str2time';
 use Encode 'encode_utf8';
+use Log::Message;
 use Term::ANSIColor ':constants';
 use Term::Screen;
 use Twiterm::PageState;
 use Twiterm::Statuses;
 use Unicode::EastAsianWidth;
 
+my $log = new Log::Message(
+    tag => __PACKAGE__,
+);
 
 sub BUILD {
     my $self = shift;
@@ -42,11 +47,13 @@ sub BUILD {
     $self->{screen} = new Term::Screen;
     $self->{row} = $self->{screen}->rows() - 2;
     $self->{col} = $self->{screen}->cols() - 1;
+    $log->store('BUILD ok');
 }
 
 sub run {
     my $self = shift;
 
+    $log->store('run');
     $self->_draw();
     while (1) {
         my $cv = AnyEvent->condvar;
@@ -230,6 +237,13 @@ sub _update_done {
 sub _get_statuses {
     my $self = shift;
     my $timeline = $self->{page}->timeline();
+    if ($timeline eq 'log') {
+        return [map {
+            created_at  => str2time($_->when),
+            screen_name => $_->tag,
+            text        => $_->message,
+        }, $log->retrieve()];
+    }
     if ($timeline eq 'friends') {
         return [$self->{statuses}->friends()];
     }

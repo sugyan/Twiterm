@@ -6,10 +6,17 @@ no Mouse;
 
 __PACKAGE__->meta->make_immutable;
 
+use Log::Message;
+
+my $log = new Log::Message(
+    tag => __PACKAGE__,
+);
+
 sub BUILD {
     my $self = shift;
     $self->{pages} = [];
     $self->{index} = 0;
+    $log->store('BUILD ok');
 }
 
 sub addPage {
@@ -22,6 +29,7 @@ sub addPage {
         select => 0,
         disp_mode => 0,
     };
+    $log->store('addPage: ' . $config->{name} || '');
 }
 
 sub timeline {
@@ -91,36 +99,5 @@ sub next {
     $self->{index}++;
     $self->{index} = 0 if $self->{index} > $#{$self->{pages}};
 }
-
-# my @pages;
-
-# has 'timeline' => (
-#     is       => 'ro',
-#     isa      => 'CodeRef',
-#     required => 1,
-# );
-
-# has 'offset' => (
-#     is      => 'rw',
-#     isa     => 'Int',
-#     default => 0,
-# );
-
-# has 'select' => (
-#     is      => 'rw',
-#     isa     => 'Int',
-#     default => 0,
-# );
-
-# has 'disp_mode' => (
-#     is      => 'rw',
-#     isa     => 'Int',
-#     default => 0,
-# );
-
-# sub position {
-#     my $self = shift;
-#     return $self->{offset} + $self->{select};
-# }
 
 1;
