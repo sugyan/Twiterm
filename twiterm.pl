@@ -7,10 +7,9 @@ use Getopt::Long;
 use Twiterm;
 
 my $usage = "usage: perl $0 --username=<username> --password=<password>\n";
-my ($username, $password);
 GetOptions(
-    'username=s' => \$username,
-    'password=s' => \$password,
+    'username=s' => \my $username,
+    'password=s' => \my $password,
 ) or die;
 warn $usage and die if (!defined($username) or !defined($password));
 

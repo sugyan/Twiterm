@@ -44,10 +44,6 @@ sub BUILD {
     $self->{col} = $self->{screen}->cols() - 1;
 }
 
-sub DESTROY {
-    my $self = shift;
-}
-
 sub run {
     my $self = shift;
 
