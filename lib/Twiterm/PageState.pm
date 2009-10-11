@@ -49,6 +49,7 @@ sub disp_mode {
 
 sub change_mode {
     my $self = shift;
+    return if $self->{index} == 0;
     my $page = $self->{pages}->[$self->{index}];
     $page->{disp_mode} = !$page->{disp_mode};
 }
