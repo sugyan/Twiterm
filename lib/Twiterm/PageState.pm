@@ -23,13 +23,15 @@ sub addPage {
     my $self = shift;
     my $config = shift;
 
-    push @{$self->{pages}}, {
+    my $page = {
+        name   => 'NO NAME',
         %$config,
         offset => 0,
         select => 0,
         disp_mode => 0,
     };
-    $log->store('addPage: ' . $config->{name} || '');
+    push @{$self->{pages}}, $page;
+    $log->store("addPage ($page->{name})");
 }
 
 sub timeline {

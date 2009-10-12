@@ -29,10 +29,14 @@ sub BUILD {
     my $self = shift;
 
     $self->{statuses} = new Twiterm::Statuses(
-        username => $self->{config}->{username},
-        password => $self->{config}->{password},
-        delegate => $self,
-        update_cb => \&_update_done,
+        consumer_key        => 'Apfmu9l9LnyUoNFteXPw9Q',
+        consumer_secret     => 'O9Qq2a82X0gRXQTrAzplf65v5Tr2EEVGbf13Ew3IA',
+        access_token        => $self->{config}->{access_token},
+        access_token_secret => $self->{config}->{access_token_secret},
+        username            => $self->{config}->{username},
+        password            => $self->{config}->{password},
+        delegate            => $self,
+        update_cb           => \&_update_done,
     );
     $self->{page} = new Twiterm::PageState();
     $self->{page}->addPage({
@@ -52,9 +56,10 @@ sub BUILD {
 
 sub run {
     my $self = shift;
-
     $log->store('run');
-    $self->_draw();
+
+    $self->{statuses}->start();
+    $self->_update_done();
     while (1) {
         my $cv = AnyEvent->condvar;
         my $io; $io = AnyEvent->io(
