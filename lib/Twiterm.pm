@@ -29,14 +29,18 @@ sub BUILD {
     my $self = shift;
 
     $self->{statuses} = new Twiterm::Statuses(
-        consumer_key        => 'Apfmu9l9LnyUoNFteXPw9Q',
-        consumer_secret     => 'O9Qq2a82X0gRXQTrAzplf65v5Tr2EEVGbf13Ew3IA',
-        access_token        => $self->{config}->{access_token},
-        access_token_secret => $self->{config}->{access_token_secret},
-        username            => $self->{config}->{username},
-        password            => $self->{config}->{password},
-        delegate            => $self,
-        update_cb           => \&_update_done,
+        twitter_params => {
+            consumer_key        => 'Apfmu9l9LnyUoNFteXPw9Q',
+            consumer_secret     => 'O9Qq2a82X0gRXQTrAzplf65v5Tr2EEVGbf13Ew3IA',
+            access_token        => $self->{config}->{access_token},
+            access_token_secret => $self->{config}->{access_token_secret},
+            username            => $self->{config}->{username},
+            password            => $self->{config}->{password},
+        },
+        statuses_params => {
+            delegate  => $self,
+            update_cb => \&_update_done,
+        },
     );
     $self->{page} = new Twiterm::PageState();
     $self->{page}->addPage({
@@ -79,7 +83,7 @@ sub run {
         $self->_select_prev() if $char eq 'k';
         $self->_page_next()   if $char eq 'l';
         $self->_change_mode() if $char =~ /\x0A|\x20/;
-        $self->_update_done() if $char eq 'd';
+        $self->_update() if $char eq 'u';
     }
     $self->{screen}->clrscr();
 }
@@ -256,6 +260,12 @@ sub _get_statuses {
         return [$self->{statuses}->mentions()];
     }
     return [];
+}
+
+sub _update {
+    my $self = shift;
+    my $status = "test" x (1 + rand 10);
+    $self->{statuses}->update($status);
 }
 
 1;

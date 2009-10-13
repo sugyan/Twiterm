@@ -3,6 +3,7 @@ package Twiterm::AnyEvent::Twitter;
 use AnyEvent::HTTP;
 use Carp 'croak';
 use Digest::SHA;
+use JSON 'decode_json';
 use Log::Message;
 
 use base 'AnyEvent::Twitter';
@@ -12,22 +13,71 @@ my $log = new Log::Message(
 );
 
 sub new {
-   my $this  = shift;
-   my $class = ref ($this) || $this;
-   my %param = (@_);
-   if (defined $param{access_token}
-           && defined $param{access_token_secret}) {
-       $log->store('use OAuth');
-       $param{username} = '';
-       $param{password} = '';
-       $param{oauth} = 1;
-   } else {
-       $log->store('use BASIC Auth');
-   }
-   my $self  = $class->SUPER::new(%param);
+    my $this  = shift;
+    my $class = ref ($this) || $this;
+    my %param = (@_);
+    if (defined $param{access_token}
+            && defined $param{access_token_secret}) {
+        $log->store('use OAuth');
+        $param{username} = '';
+        $param{password} = '';
+        $param{oauth} = 1;
+    } else {
+        $log->store('use BASIC Auth');
+    }
+    my $self  = $class->SUPER::new(%param);
 
-   $log->store('new ok');
-   return $self;
+    $log->store('new ok');
+    return $self;
+}
+
+sub update_status {
+    my ($self, $status, $done_cb) = @_;
+
+    # BASIC認証の場合はAnyEvent::Twitterのものをそのまま使用
+    if (!$self->{oauth}) {
+        return $self->SUPER::_fetch_status_update(@_);
+    }
+    my $status_e = SUPER::_encode_status $status;
+    my $url = URI::URL->new ($self->{base_url});
+    $url->path_segments('statuses', "update.json");
+    $url->query_form(status => $status_e);
+
+    my $request = $self->_make_oauth_request(
+        request_url    => $url,
+        request_method => 'POST',
+        token          => $self->{access_token},
+        token_secret   => $self->{access_token_secret},
+    );
+
+    weaken $self;
+    $self->{http_posts}->{status} = http_post (
+        $request->normalized_request_url(),
+        $request->to_post_body(),
+        sub {
+            my ($data, $hdr) = @_;
+            delete $self->{http_posts}->{status};
+
+            $log->store($hdr->{Status});
+            if ($hdr->{Status} =~ /^2/) {
+                my $js;
+                eval {
+                    $js = decode_json($data);
+                };
+                if ($@) {
+                    $done_cb->($self, undef, undef,
+                               "error when receiving your status update "
+                                   . "and parsing it's JSON: $@");
+                    return;
+                }
+                $done_cb->($self, $status, $js);
+            } else {
+                $done_cb->($self, undef, undef,
+                           "error while updating your status: "
+                               . "$hdr->{Status} $hdr->{Reason}");
+            }
+        },
+    );
 }
 
 sub _fetch_status_update {
@@ -50,29 +100,22 @@ sub _fetch_status_update {
     } else {
         $url->query_form(count => 200); # fetch as many as possible
     }
-    $log->store("$url");
 
-    my $request;
-    {
-        local $Net::OAuth::SKIP_UTF8_DOUBLE_ENCODE_CHECK = 1;
-        $request = $self->_make_oauth_request(
-            'protected resource',
-            request_url    => $url,
-            request_method => 'GET',
-            token          => $self->{access_token},
-            token_secret   => $self->{access_token_secret},
-            extra_params   => $args,
-        );
-        $log->store("$request");
-    }
+    my $request = $self->_make_oauth_request(
+        request_url    => $url,
+        request_method => 'GET',
+        token          => $self->{access_token},
+        token_secret   => $self->{access_token_secret},
+    );
 
     weaken $self;
     $self->{http_get}->{$category} =
         http_get $request->to_url(), sub {
             my ($data, $hdr) = @_;
 
+            $log->store($hdr->{Status});
             delete $self->{http_get}->{$category};
-            #d# warn "FOO: " . JSON->new->pretty->encode ($hdr) . "\n";
+
             if ($hdr->{Status} =~ /^2/) {
                 $self->_analze_statuses ($category, $data);
             } else {
@@ -84,13 +127,13 @@ sub _fetch_status_update {
 }
 
 sub _make_oauth_request {
-    my ($self, $type, %params) = @_;
+    my ($self, %params) = @_;
 
-    my $request = $self->_oauth->request($type)->new(
+    local $Net::OAuth::SKIP_UTF8_DOUBLE_ENCODE_CHECK = 1;
+    my $request = $self->_oauth->request('protected resource')->new(
         version          => '1.0',
         consumer_key     => $self->{consumer_key},
         consumer_secret  => $self->{consumer_secret},
-        request_method   => 'GET',
         signature_method => 'HMAC-SHA1',
         timestamp        => time,
         nonce            => Digest::SHA::sha1_base64(time . $$ . rand),
@@ -101,6 +144,7 @@ sub _make_oauth_request {
     return $request;
 }
 
+# from Net::Twitter::Lite
 sub _oauth {
     my $self = shift;
 

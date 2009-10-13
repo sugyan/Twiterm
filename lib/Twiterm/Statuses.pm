@@ -11,11 +11,13 @@ my $log = new Log::Message(
 
 sub new {
     my $class = shift;
+    my %params = (@_);
     my $self  = {
         twitter => Twiterm::AnyEvent::Twitter->new(
-            @_,
+            %{$params{twitter_params}},
             bandwidth => 0.1,
         ),
+        %{$params{statuses_params}},
         friends  => {},
         mentions => {},
         users    => {},
@@ -39,6 +41,8 @@ sub start {
             my ($twitter, @statuses) = @_;
             $log->store('get friends_timeline');
             $self->_add($self->{friends}, @statuses);
+            $log->store('update_cb') if defined $self->{update_cb};
+            $log->store('delegate') if defined $self->{delegate};
             if (defined $self->{update_cb} &&
                     defined $self->{delegate}) {
                 &{$self->{update_cb}}($self->{delegate});
@@ -47,6 +51,30 @@ sub start {
     );
     $self->{twitter}->receive_statuses_friends;
     $self->{twitter}->start;
+}
+
+sub update {
+    my $self = shift;
+    my $status = shift;
+    $self->{twitter}->update_status(
+        $status,
+        sub {
+            my ($twitty, $status, $js_status, $error) = @_;
+            $log->store("update status: $status");
+            if (defined $error) {
+                $log->store("update error: $error");
+            } else {
+                $log->store('update success');
+            }
+            $log->store('update_cb') if defined $self->{update_cb};
+            $log->store('delegate') if defined $self->{delegate};
+            if (defined $self->{update_cb} &&
+                    defined $self->{delegate}) {
+                &{$self->{update_cb}}($self->{delegate});
+            } else {
+            }
+        },
+    );
 }
 
 sub friends {
