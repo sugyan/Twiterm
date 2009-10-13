@@ -264,8 +264,9 @@ sub _get_statuses {
 
 sub _update {
     my $self = shift;
-    my $status = "test" x (1 + rand 10);
-    $self->{statuses}->update($status);
+    my $status = "テスト" x (1 + rand 10);
+    use Encode 'decode_utf8';
+    $self->{statuses}->update(decode_utf8($status));
 }
 
 1;

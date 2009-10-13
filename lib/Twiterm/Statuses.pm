@@ -1,6 +1,10 @@
 package Twiterm::Statuses;
 
-use Twiterm::AnyEvent::Twitter;
+use strict;
+use warnings;
+
+use AnyEvent::Twitter;
+use AnyEvent::Twitter::EnableOAuth;
 use Date::Parse 'str2time';
 use HTML::Entities;
 use Log::Message;
@@ -13,7 +17,7 @@ sub new {
     my $class = shift;
     my %params = (@_);
     my $self  = {
-        twitter => Twiterm::AnyEvent::Twitter->new(
+        twitter => AnyEvent::Twitter->new(
             %{$params{twitter_params}},
             bandwidth => 0.1,
         ),
@@ -41,8 +45,6 @@ sub start {
             my ($twitter, @statuses) = @_;
             $log->store('get friends_timeline');
             $self->_add($self->{friends}, @statuses);
-            $log->store('update_cb') if defined $self->{update_cb};
-            $log->store('delegate') if defined $self->{delegate};
             if (defined $self->{update_cb} &&
                     defined $self->{delegate}) {
                 &{$self->{update_cb}}($self->{delegate});
@@ -66,12 +68,9 @@ sub update {
             } else {
                 $log->store('update success');
             }
-            $log->store('update_cb') if defined $self->{update_cb};
-            $log->store('delegate') if defined $self->{delegate};
             if (defined $self->{update_cb} &&
                     defined $self->{delegate}) {
                 &{$self->{update_cb}}($self->{delegate});
-            } else {
             }
         },
     );
