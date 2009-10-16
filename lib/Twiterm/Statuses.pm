@@ -61,6 +61,7 @@ sub update {
         $status,
         sub {
             my ($twitty, $status, $js_status, $error) = @_;
+            $status =~ s/[\x00-\x1F]/ /xmsg;
             $log->store("update status: $status");
             if (defined $error) {
                 $log->store("update error: $error");

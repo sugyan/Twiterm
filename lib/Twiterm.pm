@@ -1,8 +1,9 @@
 package Twiterm;
 
 use Date::Parse 'str2time';
-use Encode 'encode_utf8';
+use Encode qw/decode_utf8 encode_utf8/;
 use Log::Message;
+use Proc::InvokeEditor;
 use Term::ANSIColor ':constants';
 use Term::Screen;
 use Twiterm::PageState;
@@ -256,10 +257,10 @@ sub _get_statuses {
     return [];
 }
 
+
 sub _update {
     my $self = shift;
-    my $status = "テスト" x (1 + rand 10);
-    use Encode 'decode_utf8';
+    my $status = Proc::InvokeEditor->edit;
     $self->{statuses}->update(decode_utf8($status));
 }
 
