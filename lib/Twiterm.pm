@@ -1,17 +1,5 @@
 package Twiterm;
 
-use Mouse;
-
-has 'config' => (
-    is       => 'ro',
-    isa      => 'HashRef',
-    required => 1,
-);
-
-no Mouse;
-
-__PACKAGE__->meta->make_immutable;
-
 use Date::Parse 'str2time';
 use Encode 'encode_utf8';
 use Log::Message;
@@ -25,13 +13,26 @@ my $log = new Log::Message(
     tag => __PACKAGE__,
 );
 
-sub BUILD {
-    my $self = shift;
+sub new {
+    my $class = shift;
 
+    my $self = {
+        consumer_key    => 'Apfmu9l9LnyUoNFteXPw9Q',
+        consumer_secret => 'O9Qq2a82X0gRXQTrAzplf65v5Tr2EEVGbf13Ew3IA',
+    };
+
+    return bless $self, $class;
+}
+
+sub run {
+    my ($self, $config) = @_;
+    $log->store('run');
+
+    $self->{config} = $config;
     $self->{statuses} = new Twiterm::Statuses(
         twitter_params => {
-            consumer_key        => 'Apfmu9l9LnyUoNFteXPw9Q',
-            consumer_secret     => 'O9Qq2a82X0gRXQTrAzplf65v5Tr2EEVGbf13Ew3IA',
+            consumer_key        => $self->{consumer_key},
+            consumer_secret     => $self->{consumer_secret},
             access_token        => $self->{config}->{access_token},
             access_token_secret => $self->{config}->{access_token_secret},
             username            => $self->{config}->{username},
@@ -51,16 +52,9 @@ sub BUILD {
         $self->{page}->addPage($page_config);
     }
     $self->{timeline} = [];
-
     $self->{screen} = new Term::Screen;
     $self->{row} = $self->{screen}->rows() - 2;
     $self->{col} = $self->{screen}->cols() - 1;
-    $log->store('BUILD ok');
-}
-
-sub run {
-    my $self = shift;
-    $log->store('run');
 
     $self->{statuses}->start();
     $self->_update_done();

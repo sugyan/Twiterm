@@ -27,7 +27,6 @@ sub new {
         users    => {},
     };
 
-    $log->store('new ok');
     return bless $self, $class;
 }
 
