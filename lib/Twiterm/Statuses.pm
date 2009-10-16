@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use AnyEvent::Twitter;
-use AnyEvent::Twitter::EnableOAuth;
+use AnyEvent::Twitter::Extension;
 use Date::Parse 'str2time';
 use HTML::Entities;
 use Log::Message;

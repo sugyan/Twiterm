@@ -1,4 +1,4 @@
-package AnyEvent::Twitter::EnableOAuth;
+package AnyEvent::Twitter::Extension;
 
 use strict;
 use warnings;
