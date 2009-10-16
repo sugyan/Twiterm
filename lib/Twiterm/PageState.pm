@@ -1,22 +1,19 @@
 package Twiterm::PageState;
 
-use Mouse;
-
-no Mouse;
-
-__PACKAGE__->meta->make_immutable;
-
 use Log::Message;
 
 my $log = new Log::Message(
     tag => __PACKAGE__,
 );
 
-sub BUILD {
-    my $self = shift;
-    $self->{pages} = [];
-    $self->{index} = 0;
-    $log->store('BUILD ok');
+sub new {
+    my $class = shift;
+    my $self = {
+        pages => [],
+        index => 0,
+    };
+
+    return bless $self, $class;
 }
 
 sub addPage {
