@@ -54,13 +54,14 @@ sub enable_oauth {
     };
     # update処理のOAuth対応
     *update_status = sub {
-        my ($self, $status, $done_cb) = @_;
+        my ($self, $status, $done_cb, $reply_id) = @_;
 
         my $url = URI::URL->new($self->{base_url});
         $url->path_segments('statuses', "update.json");
 
         $self->_post_data($url, {
             status => $self->{oauth} ? $status : encode_utf8($status),
+            in_reply_to_status_id => $reply_id,
         }, $done_cb);
     };
     *favorite_status = sub {

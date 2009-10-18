@@ -69,8 +69,7 @@ sub start {
 }
 
 sub update {
-    my $self   = shift;
-    my $status = shift;
+    my ($self, $status, $reply_id) = @_;
     $self->{twitter}->update_status(
         $status, sub {
             my ($twitty, $js_status, $error) = @_;
@@ -85,6 +84,7 @@ sub update {
                 &{$self->{update_cb}}($self->{delegate});
             }
         },
+        $reply_id,
     );
 }
 

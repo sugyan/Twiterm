@@ -78,8 +78,10 @@ sub run {
         $self->_select_prev() if $char eq 'k';
         $self->_page_next()   if $char eq 'l';
         $self->_favorite()    if $char eq 'f';
+        $self->_update()      if $char eq 'u';
+        $self->_reply()       if $char eq 'r';
+        $self->_retweet()     if $char eq 'R';
         $self->_change_mode() if $char =~ /\x0A|\x20/;
-        $self->_update() if $char eq 'u';
     }
     $self->{screen}->clrscr();
 }
@@ -259,10 +261,28 @@ sub _get_statuses {
 }
 
 sub _update {
+    my ($self, $status, $reply_id) = @_;
+    $status = Proc::InvokeEditor->edit($status);
+    if ($status) {
+        $log->store('request update...');
+        $self->{statuses}->update(decode_utf8($status), $reply_id);
+    } else {
+        $self->_draw();
+    }
+}
+
+sub _reply {
     my $self = shift;
-    my $status = Proc::InvokeEditor->edit;
-    $log->store('request update...');
-    $self->{statuses}->update(decode_utf8($status));
+    my $status = $self->{timeline}->[$self->{page}->position()];
+    my $user   = $self->{statuses}->user($status->{user_id})->{screen_name};
+    $self->_update("\@$user ", $status->{id});
+}
+
+sub _retweet {
+    my $self = shift;
+    my $status = $self->{timeline}->[$self->{page}->position()];
+    my $user   = $self->{statuses}->user($status->{user_id})->{screen_name};
+    $self->_update("RT \@$user: $status->{text}", $status->{id});
 }
 
 sub _favorite {
