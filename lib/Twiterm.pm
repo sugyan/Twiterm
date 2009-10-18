@@ -77,6 +77,7 @@ sub run {
         $self->_select_next() if $char eq 'j';
         $self->_select_prev() if $char eq 'k';
         $self->_page_next()   if $char eq 'l';
+        $self->_favorite()    if $char eq 'f';
         $self->_change_mode() if $char =~ /\x0A|\x20/;
         $self->_update() if $char eq 'u';
     }
@@ -164,7 +165,7 @@ sub _draw_list {
             if (!defined $text) {
                 # ターミナル幅に合わせて1行以内に収まるように切る
                 my @created_at = localtime $status->{created_at};
-                my $status_text = sprintf '%02d/%02d %02d:%02d:%02d - %s : ', (
+                my $status_text = sprintf ' %02d/%02d %02d:%02d:%02d - %s : ', (
                     $created_at[4] + 1,
                     @created_at[3, 2, 1, 0],
                     $status->{screen_name},
@@ -178,6 +179,7 @@ sub _draw_list {
                 $text = encode_utf8 $status_text;
                 $status->{line} = $text;
             }
+            substr($text, 0, 1, $status->{favorited} ? '*' : ' ');
         }
         $self->{screen}->at($line + 1, 0);
         $self->{screen}->reverse() if ($self->{page}->select == $line);
@@ -245,7 +247,7 @@ sub _get_statuses {
             created_at  => str2time($_->when),
             screen_name => $_->tag,
             text        => $_->message,
-        }, $log->retrieve()];
+        }, reverse $log->retrieve()];
     }
     if ($timeline eq 'friends') {
         return [$self->{statuses}->friends()];
@@ -256,11 +258,18 @@ sub _get_statuses {
     return [];
 }
 
-
 sub _update {
     my $self = shift;
     my $status = Proc::InvokeEditor->edit;
+    $log->store('request update...');
     $self->{statuses}->update(decode_utf8($status));
+}
+
+sub _favorite {
+    my $self = shift;
+    my $status = $self->{timeline}->[$self->{page}->position()];
+    $log->store('request favorite...');
+    $self->{statuses}->favorite($status->{id});
 }
 
 1;

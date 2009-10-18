@@ -56,8 +56,23 @@ sub enable_oauth {
     *update_status = sub {
         my ($self, $status, $done_cb) = @_;
 
-        my $url = URI::URL->new ($self->{base_url});
+        my $url = URI::URL->new($self->{base_url});
         $url->path_segments('statuses', "update.json");
+
+        $self->_post_data($url, {
+            status => $self->{oauth} ? $status : encode_utf8($status),
+        }, $done_cb);
+    };
+    *favorite_status = sub {
+        my ($self, $action, $id, $done_cb) = @_;
+
+        my $url = URI::URL->new($self->{base_url});
+        $url->path_segments('favorites', $action, "$id.json");
+
+        $self->_post_data($url, {}, $done_cb);
+    };
+    *_post_data = sub {
+        my ($self, $url, $param, $done_cb) = @_;
 
         # http_postの引数を認証方法に応じて変更
         my ($target_url, $body, %params);
@@ -67,15 +82,12 @@ sub enable_oauth {
                 request_method => 'POST',
                 token          => $self->{access_token},
                 token_secret   => $self->{access_token_secret},
-                extra_params   => {
-                    status => $status,
-                },
+                extra_params   => $param,
             );
             $target_url = $request->normalized_request_url();
             $body       = $request->to_post_body();
         } else {
-            my $status_e = encode_utf8 $status;
-            $url->query_form(status => $status_e);
+            $url->query_form(%$param);
             $target_url = $url->as_string;
             $body       = '';
             %params     = (
@@ -100,7 +112,7 @@ sub enable_oauth {
                                        . "and parsing it's JSON: $@");
                         return;
                     }
-                    $done_cb->($self, $status, $js);
+                    $done_cb->($self, $js);
                 } else {
                     $done_cb->($self, undef, undef,
                                "error while updating your status: "
@@ -176,7 +188,9 @@ sub enable_oauth {
     # メソッドの交換
     *AnyEvent::Twitter::new                  = \&new;
     *AnyEvent::Twitter::update_status        = \&update_status;
+    *AnyEvent::Twitter::favorite_status      = \&favorite_status;
     *AnyEvent::Twitter::_fetch_status_update = \&_fetch_status_update;
+    *AnyEvent::Twitter::_post_data           = \&_post_data;
     *AnyEvent::Twitter::_make_oauth_request  = \&_make_oauth_request;
     return 1;
 }

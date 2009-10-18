@@ -69,18 +69,47 @@ sub start {
 }
 
 sub update {
-    my $self = shift;
+    my $self   = shift;
     my $status = shift;
     $self->{twitter}->update_status(
-        $status,
-        sub {
-            my ($twitty, $status, $js_status, $error) = @_;
-            $status =~ s/[\x00-\x1F]/ /xmsg;
-            $log->store("update status: $status");
+        $status, sub {
+            my ($twitty, $js_status, $error) = @_;
             if (defined $error) {
                 $log->store("update error: $error");
             } else {
-                $log->store('update success');
+                my $text = $js_status->{text};
+                $log->store(qq/update success! "$text"/);
+            }
+            if (defined $self->{update_cb} &&
+                    defined $self->{delegate}) {
+                &{$self->{update_cb}}($self->{delegate});
+            }
+        },
+    );
+}
+
+sub favorite {
+    my $self = shift;
+    my $id   = shift;
+    my $favorited = $self->status($id)->{favorited};
+    my $action    = $favorited ? 'destroy' : 'create';
+    # 暫定的に内部データを変更しておく
+    $self->{statuses}{$id}{favorited} = !$favorited;
+    # 実際のリクエスト
+    $log->store($action);
+    $self->{twitter}->favorite_status(
+        $action, $id, sub {
+            my ($twitty, $js_status, $error) = @_;
+            if (defined $error) {
+                $log->store("favorite error: $error");
+            } else {
+                if (defined $js_status) {
+                    my $text = $js_status->{text};
+                    $log->store(qq/$action favorite success! "$text"/);
+                    # レスポンスを元にデータを更新
+                    $self->{statuses}{$js_status->{id}}{favorited} =
+                        !$js_status->{favorited};
+                }
             }
             if (defined $self->{update_cb} &&
                     defined $self->{delegate}) {
@@ -92,13 +121,11 @@ sub update {
 
 sub friends {
     my $self = shift;
-    # sortする必要はない？
     return @{$self->{statuses}}{reverse @{$self->{friends}}};
 }
 
 sub mentions {
     my $self = shift;
-    # sortする必要はない？
     return @{$self->{statuses}}{reverse @{$self->{mentions}}};
 }
 
@@ -120,7 +147,9 @@ sub _add {
             created_at  => $status->[0]{timestamp},
             text        => $text,
             source      => $source,
+            id          => $raw_data->{id},
             user_id     => $raw_data->{user}{id},
+            favorited   => $raw_data->{favorited},
             in_reply_to_screen_name => $raw_data->{in_reply_to_screen_name},
             in_reply_to_status_id   => $raw_data->{in_reply_to_status_id},
         };
