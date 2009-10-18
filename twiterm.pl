@@ -35,8 +35,11 @@ if ($@) {
         access_token        => $access_token,
         access_token_secret => $access_token_secret,
         pages => [{
-            name => 'home timeline',
+            name     => 'home timeline',
             timeline => 'friends',
+        }, {
+            name     => 'mentions',
+            timeline => 'mentions',
         }],
     };
     DumpFile($config_path, $config);
