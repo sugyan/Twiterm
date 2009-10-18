@@ -1,1 +1,3 @@
-$ perl twiterm.pl --username=<username> --password=<password>
+$ perl twiterm.pl
+or
+$ perl twiterm.pl <config YAML file>
