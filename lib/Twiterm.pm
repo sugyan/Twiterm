@@ -77,11 +77,13 @@ sub run {
         $self->_select_next() if $char eq 'j';
         $self->_select_prev() if $char eq 'k';
         $self->_page_next()   if $char eq 'l';
-        $self->_favorite()    if $char eq 'f';
-        $self->_update()      if $char eq 'u';
-        $self->_reply()       if $char eq 'r';
-        $self->_retweet()     if $char eq 'R';
-        $self->_change_mode() if $char =~ /\x0A|\x20/;
+        if ($self->{page}->index() > 0) {
+            $self->_favorite()    if $char eq 'f';
+            $self->_update()      if $char eq 'u';
+            $self->_reply()       if $char eq 'r';
+            $self->_retweet()     if $char eq 'R';
+            $self->_change_mode() if $char =~ /\x0A|\x20/;
+        }
     }
     $self->{screen}->clrscr();
 }

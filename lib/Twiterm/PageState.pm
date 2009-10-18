@@ -48,7 +48,6 @@ sub disp_mode {
 
 sub change_mode {
     my $self = shift;
-    return if $self->{index} == 0;
     my $page = $self->{pages}->[$self->{index}];
     $page->{disp_mode} = !$page->{disp_mode};
 }
@@ -86,6 +85,11 @@ sub incr_offset {
 sub decr_offset {
     my $self = shift;
     return $self->{pages}->[$self->{index}]->{offset}--;
+}
+
+sub index {
+    my $self = shift;
+    return $self->{index};
 }
 
 sub prev {
