@@ -93,19 +93,19 @@ sub update {
 sub friends {
     my $self = shift;
     # sortする必要はない？
-    return @{$self->{statuses}}{@{$self->{friends}}};
+    return @{$self->{statuses}}{reverse @{$self->{friends}}};
 }
 
 sub mentions {
     my $self = shift;
     # sortする必要はない？
-    return @{$self->{statuses}}{@{$self->{mentions}}};
+    return @{$self->{statuses}}{reverse @{$self->{mentions}}};
 }
 
 sub _add {
     my ($self, $timeline, @statuses) = @_;
 
-    for my $status (@statuses) {
+    for my $status (reverse @statuses) {
         # データのカスタマイズ
         my $raw_data = $status->[1];
         my $text = $status->[0]{text};
