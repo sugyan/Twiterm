@@ -21,9 +21,10 @@ sub new {
             %{$params{twitter_params}},
         ),
         %{$params{statuses_params}},
-        friends  => {},
-        mentions => {},
+        statuses => {},
         users    => {},
+        friends  => [],
+        mentions => [],
     };
 
     return bless $self, $class;
@@ -51,7 +52,7 @@ sub start {
         statuses_mentions => sub {
             my ($twitter, @statuses) = @_;
             $log->store('get mentions');
-            $self->_add($self->{friends}, @statuses);
+            $self->_add($self->{mentions}, @statuses);
             if (defined $self->{update_cb} &&
                     defined $self->{delegate}) {
                 &{$self->{update_cb}}($self->{delegate});
@@ -91,12 +92,14 @@ sub update {
 
 sub friends {
     my $self = shift;
-    return $self->_sorted(values %{$self->{friends}});
+    # sortする必要はない？
+    return @{$self->{statuses}}{@{$self->{friends}}};
 }
 
 sub mentions {
     my $self = shift;
-    return $self->_sorted(values %{$self->{mentions}});
+    # sortする必要はない？
+    return @{$self->{statuses}}{@{$self->{mentions}}};
 }
 
 sub _add {
@@ -112,7 +115,7 @@ sub _add {
             $source = $1;
         }
         # statusの追加
-        $timeline->{$raw_data->{id}} = {
+        $self->{statuses}{$raw_data->{id}} = {
             screen_name => $status->[0]{screen_name},
             created_at  => $status->[0]{timestamp},
             text        => $text,
@@ -123,6 +126,8 @@ sub _add {
         };
         # userの追加
         $self->{users}{$raw_data->{user}{id}} = $raw_data->{user};
+        # id のみtimelineに追加
+        push @$timeline, $raw_data->{id};
     }
 }
 
@@ -133,14 +138,7 @@ sub user {
 
 sub status {
     my ($self, $id) = @_;
-    return $self->{friends}{$id} || $self->{mentions}{$id};
-}
-
-sub _sorted {
-    my ($self, @statuses) = @_;
-    return reverse sort {
-        $a->{created_at} <=> $b->{created_at}
-    } @statuses;
+    return $self->{statuses}{$id};
 }
 
 1;

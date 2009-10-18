@@ -234,7 +234,6 @@ sub _change_mode {
 sub _update_done {
     my $self = shift;
     $self->{timeline} = $self->_get_statuses();
-    $self->_get_statuses();
     $self->_draw();
 }
 
