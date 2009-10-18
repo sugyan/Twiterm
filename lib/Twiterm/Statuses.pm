@@ -19,7 +19,6 @@ sub new {
     my $self  = {
         twitter => AnyEvent::Twitter->new(
             %{$params{twitter_params}},
-            bandwidth => 0.1,
         ),
         %{$params{statuses_params}},
         friends  => {},
@@ -37,7 +36,7 @@ sub start {
     my $w; $w = $self->{twitter}->reg_cb(
         error => sub {
             my ($twitter, $error) = @_;
-            $log->store('error');
+            $log->store("error: $error");
             undef $w;
         },
         statuses_friends => sub {
@@ -49,9 +48,23 @@ sub start {
                 &{$self->{update_cb}}($self->{delegate});
             }
         },
+        statuses_mentions => sub {
+            my ($twitter, @statuses) = @_;
+            $log->store('get mentions');
+            $self->_add($self->{friends}, @statuses);
+            if (defined $self->{update_cb} &&
+                    defined $self->{delegate}) {
+                &{$self->{update_cb}}($self->{delegate});
+            }
+        },
     );
-    $self->{twitter}->receive_statuses_friends;
+    # friends_timeline : mentions = 3 : 1
+    $self->{twitter}->receive_statuses_friends(3);
+    $self->{twitter}->receive_statuses_mentions(1);
     $self->{twitter}->start;
+    # 起動時はすべてのタイムラインを取得する
+    # 3:1 なら最初は friends_timeline になるので手動で mentions を取得
+    $self->{twitter}->_fetch_status_update('mentions', sub {});
 }
 
 sub update {
