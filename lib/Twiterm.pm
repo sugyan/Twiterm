@@ -121,19 +121,29 @@ sub _draw_detail {
         my $time_and_client = sprintf "%s - from %s",
             (scalar localtime $status->{created_at}, $status->{source});
         my $user_name = sprintf "%s / %s",
-            ($status->{screen_name}, encode_utf8 $user->{name});
+            ($status->{screen_name}, $user->{name});
         $user_name = "(protected) $user_name" if ($user->{protected});
         my $friends_and_followers = sprintf "%d friends, %d followers",
                 ($user->{friends_count}, $user->{followers_count});
-        print $time_and_client;
-        print $user_name;
+        print encode_utf8 $time_and_client;
+        print encode_utf8 $user_name;
         print encode_utf8 $status->{text};
-        if (my $reply_user = $status->{in_reply_to_screen_name}) {
-            my $reply_status =
-                $self->{statuses}->status($status->{in_reply_to_status_id});
+        # reply元の発言
+        my $reply_user = $status->{in_reply_to_screen_name};
+        if ($reply_user) {
             print '';
             print "in reply to \@$reply_user:";
-            print encode_utf8 $reply_status->{text} if $reply_status;
+            # in_reply_to_status_id は有るとは限らない
+            my $reply_id = $status->{in_reply_to_status_id};
+            if ($reply_id) {
+                my $reply_status = $self->{statuses}->status($reply_id);
+                if ($reply_status) {
+                    print encode_utf8 $reply_status->{text};
+                } else {
+                    # reply元の発言が取得できない場合はURLを表示
+                    print "http://twitter.com/$reply_user/status/$reply_id";
+                }
+            }
         }
         print '';
         print '';
