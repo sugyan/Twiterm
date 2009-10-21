@@ -38,7 +38,10 @@ sub start {
         error => sub {
             my ($twitter, $error) = @_;
             $log->store("error: $error");
-            undef $w;
+            # 400台のレスポンスが返ってきた場合のみ中断
+            if ($error =~ /4\d\d/) {
+                undef $w;
+            }
         },
         statuses_friends => sub {
             my ($twitter, @statuses) = @_;
