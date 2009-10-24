@@ -42,4 +42,31 @@ sub receive_statuses_replies {
     };
 }
 
+sub start {
+    my $self = shift;
+
+    $self->_tick;
+}
+
+sub _tick {
+    my $self = shift;
+
+    my $max_task;
+    for my $schedule (keys %{$self->{schedule}}) {
+        my $task = $self->{schedule}{$schedule};
+        $task->{wait} += $task->{weight};
+
+        $max_task = $task if !defined $max_task;
+        $max_task = $task if $max_task->{wait} <= $task->{wait};
+    }
+
+    return if !defined $max_task;
+
+    weaken $self;
+    $max_task->{request}(
+        sub { $self->_schedule_next_tick(shift) }, $max_task,
+    );
+    $max_task->{wait} = 0;
+}
+
 1;
