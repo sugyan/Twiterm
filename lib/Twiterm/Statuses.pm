@@ -20,7 +20,7 @@ sub new {
         twitter => AnyEvent::Twitter->new(
             %{$params{twitter_params}},
         ),
-        %{$params{statuses_params}},
+        %{$params{statuses_params} || {}},
         statuses => {},
         users    => {},
         friends  => [],

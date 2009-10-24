@@ -4,6 +4,8 @@ use Twiterm::Statuses;
 
 my $class = 'Twiterm::Statuses';
 my $statuses = new_ok $class, [
-    username => 'username',
-    password => 'password',
+    twitter_params => {
+        username => 'username',
+        password => 'password',
+    },
 ];
