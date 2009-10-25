@@ -108,14 +108,14 @@ sub enable_oauth {
                         $js = decode_json($data);
                     };
                     if ($@) {
-                        $done_cb->($self, undef, undef,
+                        $done_cb->($self, undef,
                                    "error when receiving your status update "
                                        . "and parsing it's JSON: $@");
                         return;
                     }
                     $done_cb->($self, $js);
                 } else {
-                    $done_cb->($self, undef, undef,
+                    $done_cb->($self, undef,
                                "error while updating your status: "
                                    . "$hdr->{Status} $hdr->{Reason}");
                 }
