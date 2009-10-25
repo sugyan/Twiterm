@@ -9,6 +9,8 @@ use Scalar::Util 'weaken';
 use Try::Tiny;
 use URI::URL;
 
+our $VERSION = '0.1';
+
 sub new {
    my $class = shift;
    my $self  = $class->SUPER::new(
@@ -78,6 +80,28 @@ sub start {
 sub error {
 }
 
+sub update_status {
+    my ($self, $status, $done_cb, $reply_id) = @_;
+
+    my $url = URI::URL->new($self->{base_url});
+    $url->path_segments('statuses', "update.json");
+
+    $self->_post_data($url, {
+        status           => $status,
+        reply_status_rid => $reply_id,
+        source           => __PACKAGE__,
+    }, $done_cb, 'update');
+}
+
+sub favorite_status {
+    my ($self, $action, $id, $done_cb) = @_;
+
+    my $url = URI::URL->new($self->{base_url});
+    $url->path_segments('favorites', $action, "$id.json");
+
+    $self->_post_data($url, {}, $done_cb, "${action}_favorite");
+}
+
 sub _tick {
     my $self = shift;
 
@@ -106,7 +130,7 @@ sub _fetch_status_update {
     $url->path_segments('statuses', $tl_name . '.json');
 
     weaken $self;
-    $self->{http_get}->{$statuses} = http_get(
+    $self->{http_get}{$statuses} = http_get(
         $url->as_string,
         headers => $self->_get_basic_auth,
         sub {
@@ -124,6 +148,42 @@ sub _fetch_status_update {
                         . "$headers->{Status} $headers->{Reason}");
             }
             $next_cb->($headers);
+        },
+    );
+}
+
+sub _post_data {
+    my ($self, $url, $param, $done_cb, $api) = @_;
+
+    $url->query_form(%$param);
+
+    weaken $self;
+    $self->{http_post}{$api} = http_post(
+        $url->as_string,
+        undef,
+        headers => $self->_get_basic_auth,
+        sub {
+            my ($data, $headers) = @_;
+
+            delete $self->{http_post}{$api};
+            if ($headers->{Status} =~ /^2/) {
+                my $json;
+                try {
+                    $json = decode_json($data);
+                } catch {
+                    $done_cb->(
+                        $self, undef,
+                        "error when receiving your post $api "
+                            . "and parsing it's JSON: $_");
+                    return;
+                };
+                $done_cb->($self, $json);
+            } else {
+                $done_cb->(
+                    $self, undef,
+                    "error while $api: "
+                        . "$headers->{Status} $headers->{Reason}");
+            }
         },
     );
 }
