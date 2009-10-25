@@ -21,7 +21,8 @@ sub addPage {
     my $config = shift;
 
     my $page = {
-        name   => 'NO NAME',
+        name       => 'NO NAME',
+        account_id => '',
         %$config,
         offset => 0,
         select => 0,
@@ -65,6 +66,11 @@ sub position {
 sub name {
     my $self = shift;
     return $self->{pages}->[$self->{index}]->{name};
+}
+
+sub account_id {
+    my $self = shift;
+    return $self->{pages}->[$self->{index}]->{account_id};
 }
 
 sub incr_select {

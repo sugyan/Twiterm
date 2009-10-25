@@ -31,14 +31,9 @@ sub run {
 
     $self->{config} = $config;
     $self->{statuses} = new Twiterm::Statuses(
-        twitter_params => {
-            consumer_key        => $self->{consumer_key},
-            consumer_secret     => $self->{consumer_secret},
-            access_token        => $self->{config}->{access_token},
-            access_token_secret => $self->{config}->{access_token_secret},
-            username            => $self->{config}->{username},
-            password            => $self->{config}->{password},
-        },
+        consumer_key    => $self->{consumer_key},
+        consumer_secret => $self->{consumer_secret},
+        accounts => $self->{config}{account},
         statuses_params => {
             delegate  => $self,
             update_cb => \&_update_done,
@@ -264,10 +259,10 @@ sub _get_statuses {
         }, reverse $log->retrieve()];
     }
     if ($timeline eq 'friends') {
-        return [$self->{statuses}->friends()];
+        return [$self->{statuses}->friends($self->{page}->account_id())];
     }
     if ($timeline eq 'mentions') {
-        return [$self->{statuses}->mentions()];
+        return [$self->{statuses}->mentions($self->{page}->account_id())];
     }
     return [];
 }

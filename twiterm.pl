@@ -12,12 +12,17 @@ my $twiterm = new Twiterm();
 my $config_path = $ARGV[0] || 'config.yaml';
 # An example of config.yaml:
 # ---
-# access_token: *************************************************
-# access_token_secret: ******************************************
+# account:
+#   - service: twitter
+#     id: MyTwitter
+#     access_token: *************************************************
+#     access_token_secret: ******************************************
 # pages:
 #   - name: friends' timeline
+#     account_id: MyTwitter
 #     timeline: friends
 #   - name: mentions
+#     account_id: MyTwitter
 #     timeline: mentions
 my $config = eval {
     LoadFile($config_path);
@@ -32,14 +37,20 @@ if ($@) {
 
     my($access_token, $access_token_secret) = $ntl->request_access_token(verifier => $pin);
     $config = {
-        access_token        => $access_token,
-        access_token_secret => $access_token_secret,
+        account => [{
+            id       => 'MyTwitter',
+            service  => 'twitter',
+            access_token        => $access_token,
+            access_token_secret => $access_token_secret,
+        }],
         pages => [{
-            name     => 'home timeline',
-            timeline => 'friends',
+            name       => 'home timeline',
+            account_id => 'MyTwitter',
+            timeline   => 'friends',
         }, {
-            name     => 'mentions',
-            timeline => 'mentions',
+            name       => 'mentions',
+            account_id => 'MyTwitter',
+            timeline   => 'mentions',
         }],
     };
     DumpFile($config_path, $config);
