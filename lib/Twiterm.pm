@@ -10,6 +10,7 @@ use Twiterm::PageState;
 use Twiterm::Statuses;
 use Unicode::EastAsianWidth;
 
+
 my $log = new Log::Message(
     tag => __PACKAGE__,
 );
@@ -94,10 +95,11 @@ sub _draw {
 
     $self->{screen}->at(0, 0);
     my $timeline_size = scalar @{$self->{timeline}};
-    my $status_line = sprintf " [ %d / %d ] - %s", (
+    my $status_line = sprintf " [ %d / %d ] - %s: %s", (
         $timeline_size ? $self->{page}->position + 1 : 0,
         $timeline_size,
-        $self->{page}->name,
+        $self->{page}->account_id(),
+        $self->{page}->name(),
     );
     print YELLOW ON_BLUE
         $status_line, ' ' x ($self->{col} - 1 - length $status_line), RESET;
@@ -272,7 +274,11 @@ sub _update {
     $status = Proc::InvokeEditor->edit($status);
     if ($status) {
         $log->store('request update...');
-        $self->{statuses}->update(decode_utf8($status), $reply_id);
+        $self->{statuses}->update(
+            $self->{page}->account_id(),
+            decode_utf8($status),
+            $reply_id
+        );
     } else {
         $self->_draw();
     }
@@ -296,7 +302,7 @@ sub _favorite {
     my $self = shift;
     my $status = $self->{timeline}->[$self->{page}->position()];
     $log->store('request favorite...');
-    $self->{statuses}->favorite($status->{id});
+    $self->{statuses}->favorite($self->{page}->account_id(), $status->{id});
 }
 
 1;

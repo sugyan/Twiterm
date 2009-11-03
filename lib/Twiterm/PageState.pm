@@ -2,6 +2,7 @@ package Twiterm::PageState;
 
 use Log::Message;
 
+
 my $log = new Log::Message(
     tag => __PACKAGE__,
 );

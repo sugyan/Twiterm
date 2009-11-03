@@ -5,6 +5,7 @@ use warnings;
 
 use AnyEvent::Twitter;
 use AnyEvent::Twitter::Extension;
+use AnyEvent::Wassr;
 use Date::Parse 'str2time';
 use HTML::Entities;
 use Log::Message;
@@ -24,18 +25,30 @@ sub new {
 
     my $consumer_key    = $params{consumer_key};
     my $consumer_secret = $params{consumer_secret};
-    my @accounts = grep { $_->{service} eq 'twitter' } @{$params{accounts}};
-    for my $account (@accounts) {
-        $self->{twitter}{$account->{id}} = {
-            client => AnyEvent::Twitter->new(
-                consumer_key    => $consumer_key,
-                consumer_secret => $consumer_secret,
-                %$account,
-            ),
-            id       => $account->{id},
-            friends  => [],
-            mentions => [],
-        };
+    for my $account (@{$params{accounts}}) {
+        my $service = $account->{service};
+        if ($service eq 'twitter') {
+            $self->{twitter}{$account->{id}} = {
+                client => AnyEvent::Twitter->new(
+                    consumer_key    => $consumer_key,
+                    consumer_secret => $consumer_secret,
+                    %$account,
+                ),
+                id       => $account->{id},
+                friends  => [],
+                mentions => [],
+            };
+        }
+        if ($service eq 'wassr') {
+            $self->{wassr}{$account->{id}} = {
+                client => AnyEvent::Wassr->new(
+                    %$account,
+                ),
+                id       => $account->{id},
+                friends  => [],
+                mentions => [],
+            };
+        }
     }
 
     return bless $self, $class;
@@ -85,15 +98,15 @@ sub start {
 }
 
 sub update {
-    my ($self, $status, $reply_id) = @_;
-    $self->{twitter}->update_status(
+    my ($self, $account_id, $status, $reply_id) = @_;
+    $self->{twitter}{$account_id}{client}->update_status(
         $status, sub {
             my ($twitty, $js_status, $error) = @_;
             if (defined $error) {
                 $log->store("update error: $error");
             } else {
                 my $text = $js_status->{text};
-                $log->store(qq/update success! "$text"/);
+                $log->store(qq/$account_id update success! "$text"/);
             }
             if (defined $self->{update_cb} &&
                     defined $self->{delegate}) {
@@ -106,14 +119,14 @@ sub update {
 
 sub favorite {
     my $self = shift;
-    my $id   = shift;
+    my ($account_id, $id) = @_;
     my $favorited = $self->status($id)->{favorited};
     my $action    = $favorited ? 'destroy' : 'create';
     # 暫定的に内部データを変更しておく
     $self->{statuses}{$id}{favorited} = !$favorited;
     # 実際のリクエスト
     $log->store($action);
-    $self->{twitter}->favorite_status(
+    $self->{twitter}{$account_id}{client}->favorite_status(
         $action, $id, sub {
             my ($twitty, $js_status, $error) = @_;
             if (defined $error) {
@@ -121,7 +134,7 @@ sub favorite {
             } else {
                 if (defined $js_status) {
                     my $text = $js_status->{text};
-                    $log->store(qq/$action favorite success! "$text"/);
+                    $log->store(qq/$account_id $action favorite success! "$text"/);
                     # レスポンスを元にデータを更新
                     $self->{statuses}{$js_status->{id}}{favorited} =
                         !$js_status->{favorited};
