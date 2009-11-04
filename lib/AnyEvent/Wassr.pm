@@ -12,37 +12,37 @@ use URI::URL;
 our $VERSION = '0.1';
 
 sub new {
-   my $class = shift;
-   my $self  = $class->SUPER::new(
-       @_,
-       enable_methods => 1,
-   );
+    my $class = shift;
+    my $self  = $class->SUPER::new(
+        @_,
+        enable_methods => 1,
+    );
 
-   # required arguments
-   if (!defined $self->{username}) {
-       croak "no 'username' given to AnyEvent::Wassr\n";
-   }
-   if (!defined $self->{password}) {
-       croak "no 'password' given to AnyEvent::Wassr\n";
-   }
+    # required arguments
+    if (!defined $self->{username}) {
+        croak "no 'username' given to AnyEvent::Wassr\n";
+    }
+    if (!defined $self->{password}) {
+        croak "no 'password' given to AnyEvent::Wassr\n";
+    }
 
-   # default values
-   if (!defined $self->{base_url}) {
-       $self->{base_url} = 'http://api.wassr.jp';
-   }
-   if (!defined $self->{interval}) {
-       $self->{interval} = 60;
-   }
-   if (!defined $self->{state}) {
-       $self->{state} = {};
-   }
+    # default values
+    if (!defined $self->{base_url}) {
+        $self->{base_url} = 'http://api.wassr.jp';
+    }
+    if (!defined $self->{interval}) {
+        $self->{interval} = 60;
+    }
+    if (!defined $self->{state}) {
+        $self->{state} = {};
+    }
 
-   # invalid
-   if ($self->{interval} < 10) {
-       croak "invalid value of 'interval'. it must be more than 10\n";
-   }
+    # invalid
+    if ($self->{interval} < 10) {
+        croak "invalid value of 'interval'. it must be more than 10\n";
+    }
 
-   return $self;
+    return $self;
 }
 
 sub receive_statuses_friends {
