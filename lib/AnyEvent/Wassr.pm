@@ -130,13 +130,13 @@ sub _fetch_status_update {
     $url->path_segments('statuses', $tl_name . '.json');
 
     weaken $self;
-    $self->{http_get}{$statuses} = http_get(
+    $self->{http_get}{$tl_name} = http_get(
         $url->as_string,
         headers => $self->_get_basic_auth,
         sub {
             my ($data, $headers) = @_;
 
-            delete $self->{http_get}{$statuses};
+            delete $self->{http_get}{$tl_name};
             if ($headers->{Status} =~ /^2/) {
                 $self->event(
                     $tl_name,
@@ -144,7 +144,7 @@ sub _fetch_status_update {
                 );
             } else {
                 $self->error(
-                    "error while fetching statuses for $statuses: "
+                    "error while fetching statuses for $tl_name: "
                         . "$headers->{Status} $headers->{Reason}");
             }
             $next_cb->($headers);
