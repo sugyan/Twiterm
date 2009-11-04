@@ -28,28 +28,25 @@ sub new {
     my $consumer_secret = $params{consumer_secret};
     for my $account (@{$params{accounts}}) {
         my $service = $account->{service};
+        my $client;
         if ($service eq 'twitter') {
-            $self->{twitter}{$account->{id}} = {
-                client => AnyEvent::Twitter->new(
-                    consumer_key    => $consumer_key,
-                    consumer_secret => $consumer_secret,
-                    %$account,
-                ),
-                id       => $account->{id},
-                friends  => [],
-                mentions => [],
-            };
+            $client = AnyEvent::Twitter->new(
+                consumer_key    => $consumer_key,
+                consumer_secret => $consumer_secret,
+                %$account,
+            );
         }
         if ($service eq 'wassr') {
-            $self->{wassr}{$account->{id}} = {
-                client => AnyEvent::Wassr->new(
-                    %$account,
-                ),
-                id       => $account->{id},
-                friends  => [],
-                mentions => [],
-            };
+            $client = AnyEvent::Wassr->new(
+                %$account,
+            );
         }
+        $self->{clients}{$account->{id}} = {
+            service  => $service,
+            client   => $client,
+            friends  => [],
+            mentions => [],
+        };
     }
 
     return bless $self, $class;
@@ -59,48 +56,48 @@ sub start {
     my $self = shift;
     $log->store('start');
 
-    for my $tw (values %{$self->{twitter}}) {
-        my $w; $w = $tw->{client}->reg_cb(
-            error => sub {
-                my ($twitter, $error) = @_;
-                $log->store("error: $error");
-                # 401が返ってきた場合のみ中断
-                if ($error =~ /401/) {
-                    undef $w;
-                }
-            },
-            statuses_friends => sub {
-                my ($twitter, @statuses) = @_;
-                $log->store("get friends_timeline ($twitter->{id})");
-                $self->_add($tw->{friends}, @statuses);
-                if (defined $self->{update_cb} &&
-                        defined $self->{delegate}) {
-                    &{$self->{update_cb}}($self->{delegate});
-                }
-            },
-            statuses_mentions => sub {
-                my ($twitter, @statuses) = @_;
-                $log->store("get mentions ($twitter->{id})");
-                $self->_add($tw->{mentions}, @statuses);
-                if (defined $self->{update_cb} &&
-                        defined $self->{delegate}) {
-                    &{$self->{update_cb}}($self->{delegate});
-                }
-            },
-        );
-        # friends_timeline : mentions = 3 : 1
-        $tw->{client}->receive_statuses_friends(3);
-        $tw->{client}->receive_statuses_mentions(1);
-        $tw->{client}->start;
-        # 起動時はすべてのタイムラインを取得する
-        # 3:1 なら最初は friends_timeline になるので手動で mentions を取得
-        $tw->{client}->_fetch_status_update('mentions', sub {});
+    for my $client (values %{$self->{clients}}) {
+        if ($client->{service} eq 'twitter') {
+            my $w; $w = $client->{client}->reg_cb(
+                error => sub {
+                    my ($twitter, $error) = @_;
+                    $log->store("error: $error");
+                    # 401が返ってきた場合のみ中断
+                    undef $w if $error =~ /401/;
+                },
+                statuses_friends => sub {
+                    my ($twitter, @statuses) = @_;
+                    $log->store("get friends_timeline ($twitter->{id})");
+                    $self->_add($client->{friends}, @statuses);
+                    if (defined $self->{update_cb} && defined $self->{delegate}) {
+                        &{$self->{update_cb}}($self->{delegate});
+                    }
+                },
+                statuses_mentions => sub {
+                    my ($twitter, @statuses) = @_;
+                    $log->store("get mentions ($twitter->{id})");
+                    $self->_add($client->{mentions}, @statuses);
+                    if (defined $self->{update_cb} && defined $self->{delegate}) {
+                        &{$self->{update_cb}}($self->{delegate});
+                    }
+                },
+            );
+            # friends_timeline : mentions = 3 : 1
+            $client->{client}->receive_statuses_friends(3);
+            $client->{client}->receive_statuses_mentions(1);
+            $client->{client}->start;
+            # 起動時はすべてのタイムラインを取得する
+            # 3:1 なら最初は friends_timeline になるので手動で mentions を取得
+            $client->{client}->_fetch_status_update('mentions', sub {});
+        }
+        if ($client->{service} eq 'wassr') {
+        }
     }
 }
 
 sub update {
     my ($self, $account_id, $status, $reply_id) = @_;
-    $self->{twitter}{$account_id}{client}->update_status(
+    $self->{clients}{$account_id}{client}->update_status(
         $status, sub {
             my ($twitty, $js_status, $error) = @_;
             if (defined $error) {
@@ -109,8 +106,7 @@ sub update {
                 my $text = $js_status->{text};
                 $log->store(qq/$account_id update success! "$text"/);
             }
-            if (defined $self->{update_cb} &&
-                    defined $self->{delegate}) {
+            if (defined $self->{update_cb} && defined $self->{delegate}) {
                 &{$self->{update_cb}}($self->{delegate});
             }
         },
@@ -127,7 +123,7 @@ sub favorite {
     $self->{statuses}{$id}{favorited} = !$favorited;
     # 実際のリクエスト
     $log->store($action);
-    $self->{twitter}{$account_id}{client}->favorite_status(
+    $self->{clients}{$account_id}{client}->favorite_status(
         $action, $id, sub {
             my ($twitty, $js_status, $error) = @_;
             if (defined $error) {
@@ -152,13 +148,14 @@ sub favorite {
 sub friends {
     my ($self, $id) = @_;
 
-    my @ids = reverse @{$self->{twitter}{$id}{friends}};
+    my @ids = reverse @{$self->{clients}{$id}{friends}};
     return @{$self->{statuses}}{@ids};
 }
 
 sub mentions {
     my ($self, $id) = @_;
-    my @ids = reverse @{$self->{twitter}{$id}{mentions}};
+
+    my @ids = reverse @{$self->{clients}{$id}{mentions}};
     return @{$self->{statuses}}{@ids};
 }
 

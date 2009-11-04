@@ -260,11 +260,12 @@ sub _get_statuses {
             text        => $_->message,
         }, reverse $log->retrieve()];
     }
+    my $page = $self->{page};
     if ($timeline eq 'friends') {
-        return [$self->{statuses}->friends($self->{page}->account_id())];
+        return [$self->{statuses}->friends($page->account_id())];
     }
     if ($timeline eq 'mentions') {
-        return [$self->{statuses}->mentions($self->{page}->account_id())];
+        return [$self->{statuses}->mentions($page->account_id())];
     }
     return [];
 }
