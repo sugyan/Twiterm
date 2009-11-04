@@ -39,6 +39,7 @@ sub new {
         if ($service eq 'wassr') {
             $client = AnyEvent::Wassr->new(
                 %$account,
+                interval => 30,
             );
         }
         $self->{clients}{$account->{id}} = {
@@ -91,6 +92,37 @@ sub start {
             $client->{client}->_fetch_status_update('mentions', sub {});
         }
         if ($client->{service} eq 'wassr') {
+            my $w; $w = $client->{client}->reg_cb(
+                error => sub {
+                    my ($wassr, $error) = @_;
+                    $log->store("error: $error");
+                    # 401が返ってきた場合のみ中断
+                    undef $w if $error =~ /401/;
+                },
+                friends_timeline => sub {
+                    my ($wassr, @statuses) = @_;
+                    $log->store("get friends_timeline ($wassr->{id})");
+#                     $self->_add($client->{friends}, @statuses);
+                    if (defined $self->{update_cb} && defined $self->{delegate}) {
+                        &{$self->{update_cb}}($self->{delegate});
+                    }
+                },
+                replies => sub {
+                    my ($wassr, @statuses) = @_;
+                    $log->store("get replies ($wassr->{id})");
+#                     $self->_add($client->{mentions}, @statuses);
+                    if (defined $self->{update_cb} && defined $self->{delegate}) {
+                        &{$self->{update_cb}}($self->{delegate});
+                    }
+                },
+            );
+            # friends_timeline : mentions = 3 : 1
+            $client->{client}->receive_statuses_friends(3);
+            $client->{client}->receive_statuses_replies(1);
+            $client->{client}->start;
+            # 起動時はすべてのタイムラインを取得する
+            # 3:1 なら最初は friends_timeline になるので手動で mentions を取得
+            $client->{client}->_fetch_status_update('replies', sub {});
         }
     }
 }
