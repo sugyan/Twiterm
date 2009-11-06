@@ -4,8 +4,10 @@ use Twiterm::Statuses;
 
 my $class = 'Twiterm::Statuses';
 my $statuses = new_ok $class, [
-    twitter_params => {
+    accounts => [ {
+        id       => '1',
+        service  => 'twitter',
         username => 'username',
         password => 'password',
-    },
+    } ],
 ];

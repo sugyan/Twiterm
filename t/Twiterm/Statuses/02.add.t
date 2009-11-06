@@ -6,10 +6,12 @@ my $class = 'Twiterm::Statuses';
 can_ok $class, '_add';
 
 my $statuses = $class->new(
-    twitter_params => {
+    accounts => [ {
+        id       => '1',
+        service  => 'twitter',
         username => 'username',
         password => 'password',
-    },
+    } ],
 );
 
-ok !($statuses->friends);
+ok !($statuses->friends('1'));
