@@ -11,7 +11,7 @@ use Digest::SHA;
 use JSON 'decode_json';
 
 sub enable_oauth {
-    return if AnyEvent::Twitter->VERSION > 0.26;
+    return if AnyEvent::Twitter->VERSION > 0.27;
     no warnings 'redefine';
     # 引数にusername, password が無くてもOAuth用のtokenがあればnew可能に
     *new = sub {
@@ -165,13 +165,6 @@ sub enable_oauth {
                         "error while fetching statuses for $category: "
                             . "$hdr->{Status} $hdr->{Reason}");
                 }
-                # bug in AnyEvent::Twitter 0.26
-                # http://d.hatena.ne.jp/sugyan/20091104/1257262555
-                if ($hdr->{Status} eq '400' &&
-                        $hdr->{'x-ratelimit-remaining'} eq '0') {
-                    $hdr->{'x-ratelimit-remaining'} = $hdr->{'x-ratelimit-reset'};
-                }
-
                 $next_cb->($hdr);
             };
     };
