@@ -20,8 +20,14 @@ sub new {
     my %params = (@_);
     my $self  = {
         %{$params{statuses_params} || {}},
-        statuses => {},
-        users    => {},
+        statuses => {
+            twitter => {},
+            wassr   => {},
+        },
+        users    => {
+            twitter => {},
+            wassr   => {},
+        },
     };
 
     my $consumer_key    = $params{consumer_key};
@@ -69,7 +75,7 @@ sub start {
                 statuses_friends => sub {
                     my ($twitter, @statuses) = @_;
                     $log->store("get friends_timeline ($twitter->{id})");
-                    $self->_add($client->{friends}, @statuses);
+                    $self->_add_twitter($client->{friends}, @statuses);
                     if (defined $self->{update_cb} && defined $self->{delegate}) {
                         &{$self->{update_cb}}($self->{delegate});
                     }
@@ -77,7 +83,7 @@ sub start {
                 statuses_mentions => sub {
                     my ($twitter, @statuses) = @_;
                     $log->store("get mentions ($twitter->{id})");
-                    $self->_add($client->{mentions}, @statuses);
+                    $self->_add_twitter($client->{mentions}, @statuses);
                     if (defined $self->{update_cb} && defined $self->{delegate}) {
                         &{$self->{update_cb}}($self->{delegate});
                     }
@@ -102,7 +108,7 @@ sub start {
                 friends_timeline => sub {
                     my ($wassr, @statuses) = @_;
                     $log->store("get friends_timeline ($wassr->{id})");
-#                     $self->_add($client->{friends}, @statuses);
+                    $self->_add_wassr($client->{friends}, @statuses);
                     if (defined $self->{update_cb} && defined $self->{delegate}) {
                         &{$self->{update_cb}}($self->{delegate});
                     }
@@ -110,7 +116,7 @@ sub start {
                 replies => sub {
                     my ($wassr, @statuses) = @_;
                     $log->store("get replies ($wassr->{id})");
-#                     $self->_add($client->{mentions}, @statuses);
+                    $self->_add_wassr($client->{mentions}, @statuses);
                     if (defined $self->{update_cb} && defined $self->{delegate}) {
                         &{$self->{update_cb}}($self->{delegate});
                     }
@@ -180,18 +186,20 @@ sub favorite {
 sub friends {
     my ($self, $id) = @_;
 
-    my @ids = reverse @{$self->{clients}{$id}{friends}};
-    return @{$self->{statuses}}{@ids};
+    my $client = $self->{clients}{$id};
+    my @ids = reverse @{$client->{friends}};
+    return @{$self->{statuses}{$client->{service}}}{@ids};
 }
 
 sub mentions {
     my ($self, $id) = @_;
 
-    my @ids = reverse @{$self->{clients}{$id}{mentions}};
-    return @{$self->{statuses}}{@ids};
+    my $client = $self->{clients}{$id};
+    my @ids = reverse @{$client->{mentions}};
+    return @{$self->{statuses}{$client->{service}}}{@ids};
 }
 
-sub _add {
+sub _add_twitter {
     my ($self, $timeline, @statuses) = @_;
 
     for my $status (reverse @statuses) {
@@ -204,21 +212,36 @@ sub _add {
             $source = $1;
         }
         # statusの追加
-        $self->{statuses}{$raw_data->{id}} = {
+        $self->{statuses}{twitter}{$raw_data->{id}} = {
             screen_name => $status->[0]{screen_name},
             created_at  => $status->[0]{timestamp},
             text        => $text,
             source      => $source,
-            id          => $raw_data->{id},
+#             id          => $raw_data->{id},
             user_id     => $raw_data->{user}{id},
             favorited   => $raw_data->{favorited},
             in_reply_to_screen_name => $raw_data->{in_reply_to_screen_name},
             in_reply_to_status_id   => $raw_data->{in_reply_to_status_id},
         };
         # userの追加
-        $self->{users}{$raw_data->{user}{id}} = $raw_data->{user};
+        $self->{users}{twitter}{$raw_data->{user}{id}} = $raw_data->{user};
         # id のみtimelineに追加
         push @$timeline, $raw_data->{id};
+    }
+}
+
+sub _add_wassr {
+    my ($self, $timeline, @statuses) = @_;
+
+    for my $status (reverse @statuses) {
+        $self->{statuses}{wassr}{$status->{rid}} = {
+            screen_name => $status->{user_login_id},
+            created_at  => $status->{epoch},
+            text        => $status->{text},
+            user_id     => $status->{user}{screen_name},
+            in_reply_to_screen_name => $status->{reply_user_login_id},
+        };
+        push @$timeline, $status->{rid};
     }
 }
 
