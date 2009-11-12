@@ -1,10 +1,8 @@
-package Twiterm::Statuses;
+package Twiterm::Client::WassrClient;
 
 use strict;
 use warnings;
 
-use AnyEvent::Twitter;
-use AnyEvent::Twitter::Extension;
 use AnyEvent::Wassr;
 use Date::Parse 'str2time';
 use HTML::Entities;
@@ -57,6 +55,9 @@ sub new {
     }
 
     return bless $self, $class;
+}
+
+sub add_account {
 }
 
 sub start {
@@ -199,38 +200,7 @@ sub mentions {
     return @{$self->{statuses}{$client->{service}}}{@ids};
 }
 
-sub _add_twitter {
-    my ($self, $timeline, @statuses) = @_;
-
-    for my $status (reverse @statuses) {
-        # データのカスタマイズ
-        my $raw_data = $status->[1];
-        my $text = $status->[0]{text};
-        $text =~ s/[\x00-\x1F]/ /xmsg;
-        my $source = $raw_data->{source};
-        if ($source =~ m!<a \s href.*?>(.*)</a>!xms) {
-            $source = $1;
-        }
-        # statusの追加
-        $self->{statuses}{twitter}{$raw_data->{id}} = {
-            screen_name => $status->[0]{screen_name},
-            created_at  => $status->[0]{timestamp},
-            text        => $text,
-            source      => $source,
-#             id          => $raw_data->{id},
-            user_id     => $raw_data->{user}{id},
-            favorited   => $raw_data->{favorited},
-            in_reply_to_screen_name => $raw_data->{in_reply_to_screen_name},
-            in_reply_to_status_id   => $raw_data->{in_reply_to_status_id},
-        };
-        # userの追加
-        $self->{users}{twitter}{$raw_data->{user}{id}} = $raw_data->{user};
-        # id のみtimelineに追加
-        push @$timeline, $raw_data->{id};
-    }
-}
-
-sub _add_wassr {
+sub _add {
     my ($self, $timeline, @statuses) = @_;
 
     for my $status (reverse @statuses) {
