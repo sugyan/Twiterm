@@ -59,7 +59,9 @@ sub run {
     $self->{row} = $self->{screen}->rows() - 2;
     $self->{col} = $self->{screen}->cols() - 1;
 
-    $self->{client}{twitter}->start();
+    for my $client (values %{$self->{client}}) {
+        $client->start();
+    }
     $self->_update_done();
     while (1) {
         my $cv = AnyEvent->condvar;
@@ -262,6 +264,7 @@ sub _get_statuses {
 sub _update {
     my ($self, $status, $reply_id) = @_;
     $status = Proc::InvokeEditor->edit($status);
+    chomp $status;
     if ($status) {
         $log->store('request update...');
         $self->_current_client()->update(

@@ -18,6 +18,7 @@ sub new {
     my $class = shift;
     my $self  = {
         @_,
+        accounts => {},
         statuses => {},
         users    => {},
     };
@@ -43,8 +44,8 @@ sub start {
     my $self = shift;
     $log->store('start');
 
-    while (my ($id, $client) = each %{$self->{accounts}}) {
-        my $w; $w = $client->{client}->reg_cb(
+    while (my ($id, $account) = each %{$self->{accounts}}) {
+        my $w; $w = $account->{client}->reg_cb(
             error => sub {
                 my ($twitter, $error) = @_;
                 $log->store("error: $error");
@@ -54,7 +55,7 @@ sub start {
             statuses_friends => sub {
                 my ($twitter, @statuses) = @_;
                 $log->store("get friends_timeline ($id)");
-                $self->_add($client->{friends}, @statuses);
+                $self->_add($account->{friends}, @statuses);
                 if (defined $self->{update_cb} && defined $self->{delegate}) {
                     &{$self->{update_cb}}($self->{delegate});
                 }
@@ -62,19 +63,19 @@ sub start {
             statuses_mentions => sub {
                 my ($twitter, @statuses) = @_;
                 $log->store("get mentions ($id)");
-                $self->_add($client->{mentions}, @statuses);
+                $self->_add($account->{mentions}, @statuses);
                 if (defined $self->{update_cb} && defined $self->{delegate}) {
                     &{$self->{update_cb}}($self->{delegate});
                 }
             },
         );
         # friends_timeline : mentions = 3 : 1
-        $client->{client}->receive_statuses_friends(3);
-        $client->{client}->receive_statuses_mentions(1);
-        $client->{client}->start;
+        $account->{client}->receive_statuses_friends(3);
+        $account->{client}->receive_statuses_mentions(1);
+        $account->{client}->start;
         # 起動時はすべてのタイムラインを取得する
         # 3:1 なら最初は friends_timeline になるので手動で mentions を取得
-        $client->{client}->_fetch_status_update('mentions', sub {});
+        $account->{client}->_fetch_status_update('mentions', sub {});
     }
 }
 
