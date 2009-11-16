@@ -261,34 +261,43 @@ sub _get_statuses {
     return [];
 }
 
-sub _update {
-    my ($self, $status, $reply_id) = @_;
+my $edit = sub {
+    my $status = shift;
     $status = Proc::InvokeEditor->edit($status);
     chomp $status;
-    if ($status) {
-        $log->store('request update...');
-        $self->_current_client()->update(
-            $self->{page}->account_id(),
-            decode_utf8($status),
-            $reply_id
-        );
-    } else {
-        $self->_draw();
-    }
+    return decode_utf8 $status;
+};
+
+sub _update {
+    my $self = shift;
+
+    $self->_current_client()->update(
+        account => $self->{page}->account_id(),
+        text    => $edit->(),
+    );
+    $self->_draw();
 }
 
 sub _reply {
     my $self = shift;
-    my $status = $self->{timeline}->[$self->{page}->position()];
-    my $user   = $self->_current_client()->user($status->{user_id})->{screen_name};
-    $self->_update("\@$user ", $status->{id});
+    my $status  = $self->{timeline}->[$self->{page}->position()];
+    $self->_current_client()->reply(
+        account => $self->{page}->account_id(),
+        status  => $status,
+        edit    => $edit,
+    );
+    $self->_draw();
 }
 
 sub _retweet {
     my $self = shift;
     my $status = $self->{timeline}->[$self->{page}->position()];
-    my $user   = $self->_current_client()->user($status->{user_id})->{screen_name};
-    $self->_update("RT \@$user: $status->{text}", $status->{id});
+    $self->_current_client()->retweet(
+        account => $self->{page}->account_id(),
+        status  => $status,
+        edit    => $edit,
+    );
+    $self->_draw();
 }
 
 sub _favorite {

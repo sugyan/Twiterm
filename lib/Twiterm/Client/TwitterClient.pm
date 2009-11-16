@@ -80,7 +80,14 @@ sub start {
 }
 
 sub update {
-    my ($self, $account_id, $status, $reply_id) = @_;
+    my $self = shift;
+    my %params = (@_);
+
+    my $status = $params{text};
+    return if $status eq '';
+
+    my $account_id = $params{account};
+    $log->store('request update...');
     $self->{accounts}{$account_id}{client}->update_status(
         $status, sub {
             my ($twitty, $js_status, $error) = @_;
@@ -94,7 +101,7 @@ sub update {
                 &{$self->{update_cb}}($self->{delegate});
             }
         },
-        $reply_id,
+        $params{reply_to},
     );
 }
 
@@ -177,9 +184,34 @@ sub _add {
     }
 }
 
-sub user {
-    my ($self, $user_id) = @_;
-    return $self->{users}{$user_id};
+sub reply {
+    my $self = shift;
+    my %params = @_;
+
+    my $status = $params{status};
+    my $user = $self->{users}{$status->{user_id}};
+    my $name = $user->{screen_name};
+    my $text = $params{edit}->("\@$name ");
+    $self->update(
+        account  => $params{account},
+        text     => $text,
+        reply_to => $status->{id}
+    );
+}
+
+sub retweet {
+    my $self = shift;
+    my %params = @_;
+
+    my $status = $params{status};
+    my $user = $self->{users}{$status->{user_id}};
+    my $name = $user->{screen_name};
+    my $text = $params{edit}->(" RT \@$name: " . $status->{text});
+    $self->update(
+        account  => $params{account},
+        text     => $text,
+        reply_to => $status->{id}
+    );
 }
 
 sub detail_info {

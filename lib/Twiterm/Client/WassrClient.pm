@@ -50,7 +50,7 @@ sub start {
             },
             friends_timeline => sub {
                 my ($wassr, @statuses) = @_;
-                $log->store("get friends_timeline ($id})");
+                $log->store("get friends_timeline ($id)");
                 $self->_add($account->{friends}, @statuses);
                 if (defined $self->{update_cb} && defined $self->{delegate}) {
                     &{$self->{update_cb}}($self->{delegate});
@@ -76,7 +76,14 @@ sub start {
 }
 
 sub update {
-    my ($self, $account_id, $status, $reply_id) = @_;
+    my $self = shift;
+    my %params = (@_);
+
+    my $status = $params{text};
+    return if $status eq '';
+
+    my $account_id = $params{account};
+    $log->store('request update...');
     $self->{accounts}{$account_id}{client}->update_status(
         $status, sub {
             my ($twitty, $js_status, $error) = @_;
@@ -90,7 +97,7 @@ sub update {
                 &{$self->{update_cb}}($self->{delegate});
             }
         },
-        $reply_id,
+        $params{reply_to},
     );
 }
 
@@ -157,6 +164,22 @@ sub _add {
         # id のみtimelineに追加
         push @$timeline, $status->{rid};
     }
+}
+
+sub reply {
+    my $self = shift;
+    my %params = @_;
+
+    my $status = $params{status};
+    my $text = $params{edit}->();
+    $self->update(
+        account  => $params{account},
+        text     => $text,
+        reply_to => $status->{id}
+    );
+}
+
+sub retweet {
 }
 
 sub detail_info {
