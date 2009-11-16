@@ -118,11 +118,10 @@ sub _draw_detail {
 
     $self->{screen}->at(1, 0)->clreos();
 
-    my $status     = $self->{timeline}->[$self->{page}->position()];
+    my $status = $self->{timeline}->[$self->{page}->position()];
     return if !defined $status;
 
-    my $client = $self->_current_client();
-    my $data = $client->detail_info($status);
+    my $data = $self->_current_client()->detail_info($status);
     {
         local $\ = "\r\n";
         print encode_utf8 $data->{date};
