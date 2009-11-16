@@ -86,6 +86,7 @@ sub run {
             $self->_update()      if $char eq 'u';
             $self->_reply()       if $char eq 'r';
             $self->_retweet()     if $char eq 'R';
+            $self->_multi_post()  if $char eq 'm';
             $self->_change_mode() if $char =~ /\x0A|\x20/;
         }
     }
@@ -296,6 +297,20 @@ sub _retweet {
         status  => $status,
         edit    => $edit,
     );
+    $self->_draw();
+}
+
+sub _multi_post {
+    my $self = shift;
+
+    my $text = $edit->();
+    for my $account (@{$self->{config}{'multi-post'}}) {
+        my $service = $self->{config}{accounts}{$account}{service};
+        $self->{client}{$service}->update(
+            account => $account,
+            text    => $text,
+        );
+    }
     $self->_draw();
 }
 
