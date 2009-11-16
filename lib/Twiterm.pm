@@ -130,7 +130,7 @@ sub _draw_detail {
         print encode_utf8 $data->{text};
         print ;
         if (defined $data->{reply_to}) {
-            print "reply to \@$data->{reply_to}:";
+            print encode_utf8 "reply to \@$data->{reply_to}:";
             print encode_utf8 $data->{reply_text};
             print ;
         }

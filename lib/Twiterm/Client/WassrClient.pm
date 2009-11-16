@@ -159,7 +159,9 @@ sub _add {
             user_id     => $status->{user}{screen_name},
             user_name   => $status->{user_login_id},
             protected   => $status->{user}{protected},
-            in_reply_to_screen_name => $status->{reply_user_login_id},
+            reply_message       => $status->{reply_message},
+            reply_user_nick     => $status->{reply_user_nick},
+            reply_user_login_id => $status->{reply_user_login_id},
         };
         # id のみtimelineに追加
         push @$timeline, $status->{rid};
@@ -187,13 +189,20 @@ sub detail_info {
 
     my $user_name = ($status->{protected} ? '(protected) ' : '')
         . sprintf "%s / %s", ($status->{user_name}, $status->{user_id});
+    my $reply_to;
+    if (defined $status->{reply_user_login_id}) {
+        $reply_to = sprintf "%s(%s)",
+            ($status->{reply_user_nick}, $status->{reply_user_login_id});
+    }
+    my $reply_text = $status->{reply_message} || 'private message';
+
     #TODO reply
     return {
         date => scalar localtime $status->{created_at},
         user => $user_name,
         text => $status->{text},
-        reply_to   => undef,
-        reply_text => undef,
+        reply_to   => $reply_to,
+        reply_text => $reply_text,
         user_info  => [],
     };
 }
