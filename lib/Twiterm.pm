@@ -6,8 +6,9 @@ use Log::Message;
 use Proc::InvokeEditor;
 use Term::ANSIColor ':constants';
 use Term::Screen;
+use Twiterm::Client::TwitterClient;
+use Twiterm::Client::WassrClient;
 use Twiterm::PageState;
-use Twiterm::Statuses;
 use Unicode::EastAsianWidth;
 
 
@@ -31,21 +32,26 @@ sub run {
     $log->store('run');
 
     $self->{config} = $config;
-    $self->{statuses} = new Twiterm::Statuses(
+    $self->{client}{twitter} = Twiterm::Client::TwitterClient->new(
         consumer_key    => $self->{consumer_key},
         consumer_secret => $self->{consumer_secret},
-        accounts => $self->{config}{account},
-        statuses_params => {
-            delegate  => $self,
-            update_cb => \&_update_done,
-        },
+        delegate        => $self,
+        update_cb       => \&_update_done,
     );
+    $self->{client}{wassr} = Twiterm::Client::WassrClient->new(
+        delegate        => $self,
+        update_cb       => \&_update_done,
+    );
+    while (my ($id, $params) = each %{$self->{config}{accounts}}) {
+        my $service = $params->{service};
+        $self->{client}{$service}->add_account($id, $params);
+    }
     $self->{page} = new Twiterm::PageState();
     $self->{page}->addPage({
         name     => 'log',
         timeline => 'log',
     });
-    for my $page_config (@{$self->{config}->{pages}}) {
+    for my $page_config (@{$self->{config}{pages}}) {
         $self->{page}->addPage($page_config);
     }
     $self->{timeline} = [];
@@ -53,7 +59,9 @@ sub run {
     $self->{row} = $self->{screen}->rows() - 2;
     $self->{col} = $self->{screen}->cols() - 1;
 
-    $self->{statuses}->start();
+    for my $client (values %{$self->{client}}) {
+        $client->start();
+    }
     $self->_update_done();
     while (1) {
         my $cv = AnyEvent->condvar;
@@ -109,46 +117,27 @@ sub _draw_detail {
     my $self = shift;
 
     $self->{screen}->at(1, 0)->clreos();
-    my $status = $self->{timeline}->[$self->{page}->position()];
-    my $user   = $self->{statuses}->user($status->{user_id});
 
+    my $status = $self->{timeline}->[$self->{page}->position()];
     return if !defined $status;
+
+    my $data = $self->_current_client()->detail_info($status);
     {
         local $\ = "\r\n";
-        my $time_and_client = sprintf "%s - from %s",
-            (scalar localtime $status->{created_at}, $status->{source});
-        my $user_name = sprintf "%s / %s",
-            ($status->{screen_name}, $user->{name});
-        $user_name = "(protected) $user_name" if ($user->{protected});
-        my $friends_and_followers = sprintf "%d friends, %d followers",
-                ($user->{friends_count}, $user->{followers_count});
-        print encode_utf8 $time_and_client;
-        print encode_utf8 $user_name;
-        print encode_utf8 $status->{text};
-        # reply元の発言
-        my $reply_user = $status->{in_reply_to_screen_name};
-        if ($reply_user) {
-            print '';
-            print "in reply to \@$reply_user:";
-            # in_reply_to_status_id は有るとは限らない
-            my $reply_id = $status->{in_reply_to_status_id};
-            if ($reply_id) {
-                my $reply_status = $self->{statuses}->status($reply_id);
-                if ($reply_status) {
-                    print encode_utf8 $reply_status->{text};
-                } else {
-                    # reply元の発言が取得できない場合はURLを表示
-                    print "http://twitter.com/$reply_user/status/$reply_id";
-                }
-            }
+        print encode_utf8 $data->{date};
+        print encode_utf8 $data->{user};
+        print ;
+        print encode_utf8 $data->{text};
+        print ;
+        if (defined $data->{reply_to}) {
+            print encode_utf8 "reply to \@$data->{reply_to}:";
+            print encode_utf8 $data->{reply_text};
+            print ;
         }
-        print '';
-        print '';
-        print '';
-        print $friends_and_followers;
-        print encode_utf8 $user->{location} || '';
-        print $user->{url} || '';
-        print encode_utf8 $user->{description} || '';
+        print ;
+        for my $line (@{$data->{user_info}}) {
+            print encode_utf8 $line;
+        }
     }
 }
 
@@ -260,50 +249,68 @@ sub _get_statuses {
             text        => $_->message,
         }, reverse $log->retrieve()];
     }
-    my $page = $self->{page};
+    my $id = $self->{page}->account_id();
+    my $client = $self->_current_client();
     if ($timeline eq 'friends') {
-        return [$self->{statuses}->friends($page->account_id())];
+        return [ $client->friends($id)  ];
     }
     if ($timeline eq 'mentions') {
-        return [$self->{statuses}->mentions($page->account_id())];
+        return [ $client->mentions($id) ];
     }
     return [];
 }
 
-sub _update {
-    my ($self, $status, $reply_id) = @_;
+my $edit = sub {
+    my $status = shift;
     $status = Proc::InvokeEditor->edit($status);
-    if ($status) {
-        $log->store('request update...');
-        $self->{statuses}->update(
-            $self->{page}->account_id(),
-            decode_utf8($status),
-            $reply_id
-        );
-    } else {
-        $self->_draw();
-    }
+    chomp $status;
+    return decode_utf8 $status;
+};
+
+sub _update {
+    my $self = shift;
+
+    $self->_current_client()->update(
+        account => $self->{page}->account_id(),
+        text    => $edit->(),
+    );
+    $self->_draw();
 }
 
 sub _reply {
     my $self = shift;
-    my $status = $self->{timeline}->[$self->{page}->position()];
-    my $user   = $self->{statuses}->user($status->{user_id})->{screen_name};
-    $self->_update("\@$user ", $status->{id});
+    my $status  = $self->{timeline}->[$self->{page}->position()];
+    $self->_current_client()->reply(
+        account => $self->{page}->account_id(),
+        status  => $status,
+        edit    => $edit,
+    );
+    $self->_draw();
 }
 
 sub _retweet {
     my $self = shift;
     my $status = $self->{timeline}->[$self->{page}->position()];
-    my $user   = $self->{statuses}->user($status->{user_id})->{screen_name};
-    $self->_update("RT \@$user: $status->{text}", $status->{id});
+    $self->_current_client()->retweet(
+        account => $self->{page}->account_id(),
+        status  => $status,
+        edit    => $edit,
+    );
+    $self->_draw();
 }
 
 sub _favorite {
     my $self = shift;
     my $status = $self->{timeline}->[$self->{page}->position()];
     $log->store('request favorite...');
-    $self->{statuses}->favorite($self->{page}->account_id(), $status->{id});
+    $self->_current_client()->favorite($self->{page}->account_id(), $status->{id});
+}
+
+sub _current_client {
+    my $self = shift;
+    my $id = $self->{page}->account_id();
+    my $service = $self->{config}{accounts}{$id}{service};
+    return $self->{client}{$service};
 }
 
 1;
