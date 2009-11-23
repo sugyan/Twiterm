@@ -253,10 +253,10 @@ sub _get_statuses {
     my $id = $self->{page}->account_id();
     my $client = $self->_current_client();
     if ($timeline eq 'friends') {
-        return [ $client->friends($id)  ];
+        return $client->friends($id);
     }
     if ($timeline eq 'mentions') {
-        return [ $client->mentions($id) ];
+        return $client->mentions($id);
     }
     return [];
 }

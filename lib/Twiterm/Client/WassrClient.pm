@@ -135,7 +135,7 @@ sub friends {
 
     my $client = $self->{accounts}{$id};
     my @ids = reverse @{$client->{friends}};
-    return @{$self->{statuses}}{@ids};
+    return [ @{$self->{statuses}}{@ids} ];
 }
 
 sub mentions {
@@ -143,7 +143,7 @@ sub mentions {
 
     my $client = $self->{accounts}{$id};
     my @ids = reverse @{$client->{mentions}};
-    return @{$self->{statuses}}{@ids};
+    return [ @{$self->{statuses}}{@ids} ];
 }
 
 sub _add {
