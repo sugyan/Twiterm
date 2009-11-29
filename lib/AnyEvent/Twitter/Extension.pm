@@ -128,8 +128,10 @@ sub enable_oauth {
         my $category =
             $statuses_cat =~ /^(.*?)_timeline$/ ? $1 : $statuses_cat;
         my $st = ($self->{state}->{statuses}->{$category} ||= {});
-        my $url  = URI::URL->new($self->{base_url});
-        $url->path_segments('statuses', $statuses_cat . ".json");
+        my $url = URI::URL->new($self->{base_url});
+        my $api = $statuses_cat;
+        $api = 'home_timeline' if $api eq 'friends_timeline';
+        $url->path_segments('statuses', $api . ".json");
         if (defined $st->{id}) {
             $url->query_form(since_id => $st->{id});
         } else {
