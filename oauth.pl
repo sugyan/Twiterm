@@ -1,7 +1,7 @@
+#!/usr/bin/perl
 use strict;
 use warnings;
 
-use Encode 'decode_utf8';
 use Net::Twitter::Lite;
 
 my $nt = Net::Twitter::Lite->new(
