@@ -64,6 +64,15 @@ sub enable_oauth {
             in_reply_to_status_id => $reply_id,
         }, $done_cb);
     };
+    # retweet
+    *retweet_status = sub {
+        my ($self, $id, $done_cb) = @_;
+
+        my $url = URI::URL->new($self->{base_url});
+        $url->path_segments('statuses', 'retweet', "$id.json");
+
+        $self->_post_data($url, {}, $done_cb);
+    };
     *favorite_status = sub {
         my ($self, $action, $id, $done_cb) = @_;
 
@@ -191,6 +200,7 @@ sub enable_oauth {
     # メソッドの交換
     *AnyEvent::Twitter::new                  = \&new;
     *AnyEvent::Twitter::update_status        = \&update_status;
+    *AnyEvent::Twitter::retweet_status       = \&retweet_status;
     *AnyEvent::Twitter::favorite_status      = \&favorite_status;
     *AnyEvent::Twitter::_fetch_status_update = \&_fetch_status_update;
     *AnyEvent::Twitter::_post_data           = \&_post_data;
