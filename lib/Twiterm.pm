@@ -11,6 +11,7 @@ use Twiterm::Client::WassrClient;
 use Twiterm::PageState;
 use Unicode::EastAsianWidth;
 
+our $VERSION='0.01';
 
 my $log = new Log::Message(
     tag => __PACKAGE__,
